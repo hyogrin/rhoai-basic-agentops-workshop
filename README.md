@@ -1,1 +1,1 @@
-# -rhoai-basic-agentops-workshop
+# rhoai-basic-agentops-workshop
