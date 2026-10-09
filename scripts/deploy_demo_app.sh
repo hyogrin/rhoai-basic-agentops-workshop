@@ -27,8 +27,8 @@
 #   --namespace=<NS>    Target namespace (default: demo)
 #
 # Environment overrides:
-#   PLANNER_BACKEND_IMAGE   (default: quay.io/hyogrin/inference-planner-backend:latest)
-#   PLANNER_FRONTEND_IMAGE  (default: quay.io/hyogrin/inference-planner-frontend:latest)
+#   PLANNER_BACKEND_IMAGE   (default: quay.io/rh-ee-hyochoi/inference-planner-backend:latest)
+#   PLANNER_FRONTEND_IMAGE  (default: quay.io/rh-ee-hyochoi/inference-planner-frontend:latest)
 ###############################################################################
 set -euo pipefail
 
@@ -43,8 +43,8 @@ error()   { echo -e "${RED}[ERR]${NC}  $*"; }
 ###############################################################################
 NS="demo"
 PG_NS="redhat-ods-applications"
-PLANNER_BACKEND_IMAGE="${PLANNER_BACKEND_IMAGE:-quay.io/hyogrin/inference-planner-backend:latest}"
-PLANNER_FRONTEND_IMAGE="${PLANNER_FRONTEND_IMAGE:-quay.io/hyogrin/inference-planner-frontend:latest}"
+PLANNER_BACKEND_IMAGE="${PLANNER_BACKEND_IMAGE:-quay.io/rh-ee-hyochoi/inference-planner-backend:latest}"
+PLANNER_FRONTEND_IMAGE="${PLANNER_FRONTEND_IMAGE:-quay.io/rh-ee-hyochoi/inference-planner-frontend:latest}"
 
 ###############################################################################
 # Parse arguments
@@ -451,10 +451,10 @@ if [ "$MLFLOW_AVAILABLE" = true ]; then
 fi
 
 # Wait + Verify
-oc rollout status deployment/planner-backend -n "$NS" --timeout=180s 2>/dev/null || \
-    warn "Backend rollout timeout"
-oc rollout status deployment/planner-frontend -n "$NS" --timeout=120s 2>/dev/null || \
-    warn "Frontend rollout timeout"
+oc rollout status deployment/planner-backend -n "$NS" --timeout=600s 2>/dev/null || \
+    warn "Backend rollout timeout (check: oc describe pod -l app=planner-backend -n $NS)"
+oc rollout status deployment/planner-frontend -n "$NS" --timeout=300s 2>/dev/null || \
+    warn "Frontend rollout timeout (check: oc describe pod -l app=planner-frontend -n $NS)"
 
 echo ""
 PLANNER_URL="https://inference-planner.${CLUSTER_DOMAIN}"
