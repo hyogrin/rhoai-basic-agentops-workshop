@@ -29,4 +29,4 @@ antora:
       enabled: true
 
 output:
-  dir: ./www
+  dir: ./docs
