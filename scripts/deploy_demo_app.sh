@@ -70,6 +70,9 @@ LLM_BASE_URL="${POSITIONAL[0]}"
 LLM_API_KEY="${POSITIONAL[1]}"
 LLM_MODEL="${POSITIONAL[2]}"
 
+# Normalize LLM_BASE_URL: remove trailing slash to avoid double-slash in API paths
+LLM_BASE_URL="${LLM_BASE_URL%/}"
+
 echo "=============================================="
 echo " Deploy Inference Design Planner"
 echo "   with MLflow Tracing"
@@ -91,6 +94,10 @@ if ! oc get ns "$NS" &>/dev/null 2>&1; then
     info "Creating namespace $NS..."
     oc new-project "$NS" --skip-config-write 2>/dev/null || oc create namespace "$NS"
 fi
+
+# Label namespace for NetworkPolicy (allows cross-namespace access to PostgreSQL, MLflow, etc.)
+oc label namespace "$NS" opendatahub.io/dashboard=true --overwrite 2>/dev/null || true
+oc label namespace "$NS" opendatahub.io/generated-namespace=true --overwrite 2>/dev/null || true
 
 # Verify MLflow client ConfigMaps exist (created by sno-enable-all-features Step 3b)
 MLFLOW_AVAILABLE=false
@@ -182,8 +189,8 @@ else
     warn "Using '${PG_USER}' database (shared with MaaS/MLflow)"
 fi
 
-DB_URL_ASYNC="postgresql+asyncpg://${PG_USER}:${ENCODED_PW}@${PG_FQDN}:5432/${TARGET_DB}?ssl=disable"
-DB_URL_SYNC="postgresql://${PG_USER}:${ENCODED_PW}@${PG_FQDN}:5432/${TARGET_DB}?sslmode=disable"
+DB_URL_ASYNC="postgresql+asyncpg://${PG_USER}:${ENCODED_PW}@${PG_FQDN}:5432/${TARGET_DB}"
+DB_URL_SYNC="postgresql://${PG_USER}:${ENCODED_PW}@${PG_FQDN}:5432/${TARGET_DB}"
 
 info "DB: ${PG_USER}@${PG_FQDN}:5432/${TARGET_DB}"
 echo ""
@@ -225,9 +232,57 @@ success "Config + secrets created"
 echo ""
 
 ###############################################################################
-# Step 3: Backend + Frontend
+# Step 3: DB Migration
 ###############################################################################
-info "=== Step 3/4: Backend + Frontend ==="
+info "=== Step 3/5: DB Migration ==="
+
+oc delete job planner-db-migrate -n "$NS" 2>/dev/null || true
+oc apply -n "$NS" -f - <<EOF
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: planner-db-migrate
+  namespace: ${NS}
+spec:
+  backoffLimit: 3
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: migrate
+          image: ${PLANNER_BACKEND_IMAGE}
+          command: ["alembic", "upgrade", "head"]
+          envFrom:
+            - secretRef:
+                name: planner-secrets
+            - configMapRef:
+                name: planner-config
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+EOF
+
+WAIT=0
+while [ $WAIT -lt 120 ]; do
+    JOB_STATUS=$(oc get job planner-db-migrate -n "$NS" \
+        -o jsonpath='{.status.succeeded}' 2>/dev/null || true)
+    [ "$JOB_STATUS" = "1" ] && { success "DB migration complete ✓"; break; }
+    JOB_FAILED=$(oc get job planner-db-migrate -n "$NS" \
+        -o jsonpath='{.status.failed}' 2>/dev/null || true)
+    [ "${JOB_FAILED:-0}" -ge 3 ] && { warn "DB migration failed (check: oc logs job/planner-db-migrate -n $NS)"; break; }
+    sleep 5; WAIT=$((WAIT + 5))
+done
+[ "${JOB_STATUS:-}" != "1" ] && warn "DB migration not confirmed — backend may handle it at startup"
+echo ""
+
+###############################################################################
+# Step 4: Backend + Frontend
+###############################################################################
+info "=== Step 4/5: Backend + Frontend ==="
 
 oc apply -n "$NS" -f - <<EOF
 apiVersion: apps/v1
@@ -260,6 +315,12 @@ spec:
                 name: planner-secrets
             - configMapRef:
                 name: mlflow-client-env
+          env:
+            - name: MLFLOW_TRACKING_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: mlflow-sa-token
+                  key: token
           resources:
             requests:
               cpu: 250m
@@ -271,14 +332,16 @@ spec:
             httpGet:
               path: /api/v1/health
               port: 8000
-            initialDelaySeconds: 30
+            initialDelaySeconds: 120
             periodSeconds: 30
+            failureThreshold: 5
           readinessProbe:
             httpGet:
               path: /api/v1/health
               port: 8000
-            initialDelaySeconds: 15
+            initialDelaySeconds: 60
             periodSeconds: 10
+            failureThreshold: 10
 ---
 apiVersion: v1
 kind: Service
@@ -396,50 +459,9 @@ success "Backend + Frontend applied"
 echo ""
 
 ###############################################################################
-# Step 4: DB Migration + MLflow RBAC + Verify
+# Step 5: MLflow RBAC + Verify
 ###############################################################################
-info "=== Step 4/4: Migration + RBAC + Verify ==="
-
-# DB Migration
-oc delete job planner-db-migrate -n "$NS" 2>/dev/null || true
-oc apply -n "$NS" -f - <<EOF
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: planner-db-migrate
-  namespace: ${NS}
-spec:
-  backoffLimit: 3
-  template:
-    spec:
-      restartPolicy: Never
-      containers:
-        - name: migrate
-          image: ${PLANNER_BACKEND_IMAGE}
-          command: ["alembic", "upgrade", "head"]
-          env:
-            - name: DATABASE_URL_SYNC
-              valueFrom:
-                secretKeyRef:
-                  name: planner-secrets
-                  key: DATABASE_URL_SYNC
-          resources:
-            requests:
-              cpu: 100m
-              memory: 256Mi
-            limits:
-              cpu: 500m
-              memory: 512Mi
-EOF
-
-WAIT=0
-while [ $WAIT -lt 60 ]; do
-    JOB_STATUS=$(oc get job planner-db-migrate -n "$NS" \
-        -o jsonpath='{.status.succeeded}' 2>/dev/null || true)
-    [ "$JOB_STATUS" = "1" ] && { success "DB migration complete ✓"; break; }
-    sleep 5; WAIT=$((WAIT + 5))
-done
-[ "${JOB_STATUS:-}" != "1" ] && warn "DB migration still running (check: oc logs job/planner-db-migrate -n $NS)"
+info "=== Step 5/5: RBAC + Verify ==="
 
 # MLflow RBAC
 if [ "$MLFLOW_AVAILABLE" = true ]; then
@@ -448,6 +470,21 @@ if [ "$MLFLOW_AVAILABLE" = true ]; then
         --serviceaccount="${NS}:default" \
         -n "$NS" --dry-run=client -o yaml 2>/dev/null | oc apply -f - 2>/dev/null || true
     success "MLflow RBAC configured"
+
+    # Create non-expiring SA token secret for MLflow authentication
+    if ! oc get secret mlflow-sa-token -n "$NS" &>/dev/null 2>&1; then
+        oc apply -n "$NS" -f - <<EOF
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mlflow-sa-token
+  namespace: ${NS}
+  annotations:
+    kubernetes.io/service-account.name: default
+type: kubernetes.io/service-account-token
+EOF
+        success "MLflow SA token secret created"
+    fi
 fi
 
 # Wait + Verify

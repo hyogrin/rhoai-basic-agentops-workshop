@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<url>
+<loc>https://hyochoi.github.io/rhoai-basic-agentops-workshop/modules/main/attrs-page.html</loc>
+<lastmod>2026-10-10T05:30:17.581Z</lastmod>
+</url>
+<url>
+<loc>https://hyochoi.github.io/rhoai-basic-agentops-workshop/modules/main/index.html</loc>
+<lastmod>2026-10-10T05:30:17.581Z</lastmod>
+</url>
+<url>
+<loc>https://hyochoi.github.io/rhoai-basic-agentops-workshop/modules/main/module-01-introduction.html</loc>
+<lastmod>2026-10-10T05:30:17.581Z</lastmod>
+</url>
+<url>
+<loc>https://hyochoi.github.io/rhoai-basic-agentops-workshop/modules/main/module-02-deploy-and-logs.html</loc>
+<lastmod>2026-10-10T05:30:17.581Z</lastmod>
+</url>
+<url>
+<loc>https://hyochoi.github.io/rhoai-basic-agentops-workshop/modules/main/module-03-tracing-mlflow.html</loc>
+<lastmod>2026-10-10T05:30:17.581Z</lastmod>
+</url>
+<url>
+<loc>https://hyochoi.github.io/rhoai-basic-agentops-workshop/modules/main/module-04-gpu-resources.html</loc>
+<lastmod>2026-10-10T05:30:17.581Z</lastmod>
+</url>
+<url>
+<loc>https://hyochoi.github.io/rhoai-basic-agentops-workshop/modules/main/module-05-closing.html</loc>
+<lastmod>2026-10-10T05:30:17.581Z</lastmod>
+</url>
+</urlset>

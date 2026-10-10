@@ -1,0 +1,5 @@
+* xref:module-01-introduction.adoc#introduction[Module 1: Introduction -- What is AgentOps]
+* xref:module-02-deploy-and-logs.adoc#deploy-and-logs[Module 2: Deploy App and Explore Logs]
+* xref:module-03-tracing-mlflow.adoc#tracing-mlflow[Module 3: Tracing with MLflow]
+* xref:module-04-gpu-resources.adoc#gpu-resources[Module 4: GPU and Resource Monitoring]
+* xref:module-05-closing.adoc#closing[Closing and Resources]

@@ -1,0 +1,232 @@
+:imagesdir: ../assets/images
+
+[#tracing-mlflow]
+= Tracing with MLflow
+
+Logs tell you *what* happened, but traces tell you *why*. In this module you will explore MLflow tracing to gain end-to-end visibility into the {demo-app-name} application. You will trace requests across LLM calls and tool invocations, inspect execution timelines, and understand how MLflow captures inputs, outputs, and latency for every step.
+
+== Learning Objectives
+
+By the end of this module you will be able to:
+
+* Navigate the MLflow UI to find and analyse request traces
+* Understand how autologging captures traces with zero code changes
+* Analyse execution timelines, tool calls, and LLM invocations
+* Inspect individual spans for inputs, outputs, token counts, and latency
+* Explore user sessions and multi-turn conversations
+
+== What is MLflow Tracing?
+
+MLflow Tracing is an OpenTelemetry-compatible LLM observability solution that captures inputs, outputs, and metadata for each step of a request. For the {demo-app-name}, this means visibility into:
+
+* The complete path of each user request
+* Every LLM call with its prompt and response
+* All tool invocations with their inputs and outputs
+* Timing breakdowns for each operation
+
+Each request creates a *trace* (the complete request flow) composed of *spans* (individual operations) organised in a parent-child tree showing what called what.
+
+=== How Autologging Works
+
+MLflow integrates with 40+ popular LLM and AI agent frameworks, offering a *one-line automatic tracing* experience. The {demo-app-name} uses LangChain autologging. The entire tracing setup is:
+
+[source,python]
+----
+import mlflow
+import mlflow.langchain
+
+mlflow.set_tracking_uri(settings.MLFLOW_TRACKING_URI)
+mlflow.set_experiment(settings.MLFLOW_EXPERIMENT_NAME)
+mlflow.langchain.autolog()  # <1>
+----
+<1> This single line enables automatic tracing for all LangChain and LangGraph operations. Every LLM call, tool invocation, and agent decision is captured as spans without any code changes to the application logic.
+
+MLflow's autologging provides:
+
+* *Zero code changes* for basic observability -- autolog hooks into the framework at the library level
+* *Rich metadata* including inputs, outputs, token counts, model names, and latency
+* *Production-ready scaling* -- traces are sent asynchronously to avoid blocking the application
+
+[TIP]
+====
+*When Autologging Isn't Enough*
+
+`mlflow.langchain.autolog()` captures individual LLM calls as separate trace rows automatically. However, if your application makes multiple LLM calls within a single logical step (e.g., a plan-then-validate pattern), autologging records them as independent traces -- not a unified parent–child hierarchy.
+
+To group related calls into a single trace with child spans, add manual instrumentation using `mlflow.start_span()`:
+
+[source,python]
+----
+import mlflow
+
+with mlflow.start_span(name="my_workflow", span_type="CHAIN") as root:
+    root.set_inputs({"model": model_name, "task": "design_suggestion"})
+
+    with mlflow.start_span(name="step_1_planning", span_type="LLM") as span:
+        response = await llm.ainvoke(messages)
+        span.set_inputs({"messages": messages})
+        span.set_outputs({"content": response.content})
+        span.set_attribute("mlflow.chat.tokenUsage", {
+            "input_tokens": response.usage_metadata["input_tokens"],
+            "output_tokens": response.usage_metadata["output_tokens"],
+            "total_tokens": response.usage_metadata["total_tokens"],
+        })
+
+    with mlflow.start_span(name="step_2_validation", span_type="LLM") as span:
+        response = await llm.ainvoke(validation_messages)
+        # ... same pattern
+----
+
+Key points:
+
+* Nested `start_span()` calls automatically form parent–child relationships within the same trace.
+* Use `span_type="CHAIN"` for orchestration spans and `span_type="LLM"` for model calls.
+* Set `span.set_attribute("mlflow.chat.tokenUsage", +{...}+)` so the MLflow UI displays token usage and cost dashboards correctly.
+* `ChatOpenAI` from `langchain-openai` returns token counts in `response.usage_metadata`.
+
+For more details, see the MLflow documentation: https://mlflow.org/docs/latest/llms/tracing/index.html[Manual Tracing^] | https://mlflow.org/docs/latest/llms/tracing/tracing-schema.html#extracting-token-usage[Token Usage^] | https://mlflow.org/docs/latest/llms/langchain/index.html[LangChain Integration^]
+====
+
+== Exercise 1: Access MLflow Experiments
+
+In {productname-long} 3.5, MLflow is built into the {ocp-short} AI Dashboard. No separate login is required.
+
+. In the {ocp-short} AI Dashboard, open the left sidebar and click *Experiments* under *MLflow*.
++
+You will see the list of experiments for your data science project.
+
+image::img-mlflow-experiment-select.png[Selecting the inference-design-planner experiment]
+
+[start=2]
+. Select the *{mlflow-experiment}* experiment.
++
+This is the experiment configured by the {demo-app-name} where all traces are recorded.
+
+
+== Exercise 2: Find and Analyse Traces
+
+In Module 2 you interacted with the {demo-app-name} and generated traffic. MLflow captured every step of those interactions. Let's find those traces.
+
+=== Step 3.1: View the Traces List
+
+. In the experiment view, click *Traces* in the left sidebar.
++
+You will see a list of all traced requests, sorted by most recent.
+
+image::img-mlflow-traces-list.png[MLflow traces list showing captured requests]
+
+Each row shows:
+
+* *Trace ID* -- Unique identifier for the request
+* *Request* -- What the user asked
+* *Response* -- What the application returned
+* *Execution time* -- Total end-to-end latency
+* *State* -- Whether the trace completed successfully
+
+[start=2]
+. Click on a trace to open its *Overview* view.
+
+image::img-mlflow-overview.png[MLflow overview showing captured requests]
+
+
+=== Step 3.2: Examine the Trace Summary
+
+The Summary tab reveals what was invisible during normal application use:
+
+* *Inputs* -- The user context and query passed to the agent
+* *Span sequence* -- The operations that executed (LLM calls, tool invocations, follow-up calls)
+* *Outputs* -- The complete response returned to the user, including metadata
+
+image::img-mlflow-trace-summary.png[MLflow trace summary showing inputs, spans, and outputs]
+
+
+=== Step 3.3: Explore the Execution Timeline
+
+. Click the *Details & Timeline* tab.
+. Click *Show execution timeline* to see the full trace breakdown.
+
+image::img-mlflow-execution-timeline.png[MLflow execution timeline showing span hierarchy and timing]
+
+
+The trace tree shows the complete execution path. For a typical request you might see:
+
+[cols="1,3",options="header"]
+|===
+| Span | What It Does
+
+| *Root span*
+| The top-level request handler
+
+| *ChatOpenAI (first)*
+| LLM call: the model decides what to do (e.g., which tool to call)
+
+| *Tool invocation*
+| Tool execution: queries data, performs calculations, or calls external services
+
+| *ChatOpenAI (second)*
+| LLM call: formulates a natural-language response from the tool results
+|===
+
+The execution timeline shows timing bars for each span, making it easy to identify bottlenecks. Look for:
+
+* Which span consumed the most time
+* Whether tool calls ran in parallel or sequentially
+* How much time was spent in LLM inference vs. tool execution
+
+
+== Exercise 3: Explore User Sessions
+
+MLflow provides built-in support for associating traces with users and grouping them into sessions. This is valuable for understanding multi-turn conversations and user behaviour patterns.
+
+. In MLflow, click *Sessions* in the left sidebar under *Observability*.
+
+image::img-mlflow-sessions.png[MLflow Sessions in the left sidebar under Observability]
+
+
+== Traces and Logs Are Complementary
+
+Traces and logs serve different but complementary purposes:
+
+[cols="1,2,2",options="header"]
+|===
+| Aspect | Logs (Module 2) | Traces (Module 3)
+
+| *Focus*
+| Individual events
+| Request flow across components
+
+| *Structure*
+| Flat, timestamped entries
+| Hierarchical parent-child tree
+
+| *Best for*
+| Debugging specific failures, auditing events
+| Understanding execution paths, finding bottlenecks
+
+| *Answers*
+| _What exactly happened?_
+| _Why did it happen? What was the flow?_
+|===
+
+Together, logs and traces give you complete visibility: logs for the detailed events and traces for the request flow. In Module 4 you will add the third pillar -- *metrics* -- to monitor GPU utilisation and resource consumption.
+
+== Module Summary
+
+*What you accomplished:*
+
+* Accessed the MLflow Tracking Server and located the experiment traces
+* Analysed trace summaries showing inputs, span sequences, and outputs
+* Explored execution timelines to identify bottlenecks and understand request flow
+* Inspected individual spans for tool call inputs/outputs and LLM prompts/completions
+* Explored user sessions to see multi-turn conversation flows
+
+*Key takeaways:*
+
+* MLflow autolog provides end-to-end tracing with *zero code changes* -- one line enables it
+* Traces capture execution timelines with hierarchical span relationships, showing what called what and how long each step took
+* Individual span inspection lets you pinpoint issues to specific components: tool logic, LLM prompts, or data retrieval
+* Sessions group multi-turn conversations, enabling analysis of conversation-level behaviour
+
+*Next steps:*
+
+Module 4 introduces *GPU and resource monitoring* using the {ocp-short} Console built-in observability tools, completing the three pillars of AgentOps observability.

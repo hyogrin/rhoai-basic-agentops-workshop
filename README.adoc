@@ -1,0 +1,51 @@
+= Basic AgentOps on Red Hat AI
+
+A hands-on workshop for understanding and practicing AgentOps observability on {rhoai} {rhoai-version}.
+
+Participants learn to deploy an AI-powered application with MLflow tracing, explore application logs using LokiStack, analyze request traces in MLflow, and monitor GPU utilization and resource usage through the OpenShift Console.
+
+Created: 2026-10-09
+
+---
+
+=== Links
+
+* *Live docs:* https://hyochoi.github.io/rhoai-basic-agentops-workshop/modules/main/index.html
+* *Repository:* https://github.com/hyochoi/rhoai-basic-agentops-workshop
+
+---
+
+=== Local Development
+
+==== Using Containers (Recommended)
+
+[source,sh]
+----
+podman run --rm --name antora -v $PWD:/antora -p 8080:8080 -i -t ghcr.io/juliaaano/antora-viewer
+----
+
+For SELinux environments:
+
+[source,sh]
+----
+podman run --rm --name antora -v $PWD:/antora:z -p 8080:8080 -i -t ghcr.io/juliaaano/antora-viewer
+----
+
+Open http://localhost:8080 in your browser.
+
+==== Directory Structure
+
+[source,text]
+----
+./content/modules/ROOT/
+  assets/
+    images/                                 # Screenshots and diagrams
+  nav.adoc                                  # Navigation sidebar
+  pages/
+    index.adoc                              # Landing page
+    module-01-introduction.adoc             # What is AgentOps, prerequisites
+    module-02-deploy-and-logs.adoc          # Deploy demo app, explore Loki logs
+    module-03-tracing-mlflow.adoc           # MLflow tracing and span analysis
+    module-04-gpu-resources.adoc            # GPU utilization and resource monitoring
+    module-05-closing.adoc                  # Summary and resources
+----

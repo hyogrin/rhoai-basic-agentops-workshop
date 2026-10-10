@@ -1,0 +1,228 @@
+:imagesdir: ../assets/images
+
+[#deploy-and-logs]
+= Deploy the Demo App and Explore Logs
+
+In this module you will deploy the *{demo-app-name}* application into your cluster and then explore its application logs using LokiStack in the {ocp-short} Console.
+
+The module has two parts:
+
+* *Part 1* -- Deploy the demo app (backend, frontend, database, and MLflow integration)
+* *Part 2* -- Explore application logs with LokiStack and LogQL
+
+== Part 1: Deploy the Demo App
+
+The {demo-app-name} is a full-stack AI application consisting of:
+
+[cols="1,2",options="header"]
+|===
+| Component | Purpose
+
+| *planner-backend*
+| FastAPI service with LLM integration and MLflow tracing
+
+| *planner-frontend*
+| React-based web UI
+
+| *PostgreSQL*
+| Shared database (reused from `redhat-ods-applications` namespace)
+
+| *MLflow*
+| Experiment tracking and trace collection (pre-deployed by setup scripts)
+|===
+
+=== Step 2.1: Open the Web Terminal
+
+. Access the *{ocp-short} Console* using the *OpenShift Console* tab (or via the grid icon in the top-right corner of the {productname-short} dashboard).
+. Click the *>_* icon in the top-right masthead of the {ocp-short} Console to open the Web Terminal.
+
+image::img-initiate-cli.png[Opening the Web Terminal in OpenShift Console]
+
+This gives you an in-browser terminal with `oc`, `git`, and common CLI tools pre-installed.
+
+=== Step 2.2: Set Environment Variables
+
+The deployment script requires three parameters: the LLM base URL, an API key, and the model name. Your instructor will provide these values.
+
+[source,sh,role="execute"]
+----
+export LLM_BASE_URL="https://maas.apps.ocp.xxxxxxxxxxxxxx.opentlc.com"
+export LLM_API_KEY="<MaaS subscription API key>"
+export LLM_MODEL="publishers/demo/models/redhataigemma-4-e4b-it"
+----
+
+[NOTE]
+====
+Replace `xxxxxxxxxxxxxx` in the URL with your actual cluster subdomain, and set your API key as provided by the instructor.
+====
+
+=== Step 2.3: Run the Deployment Script
+
+The deployment script is fully self-contained -- no git clone needed. It performs four steps automatically:
+
+. *PostgreSQL* -- Verifies the existing PostgreSQL instance and creates the application database
+. *Configuration* -- Creates ConfigMaps and Secrets with LLM and database connection details
+. *Backend + Frontend* -- Deploys the application pods, services, and routes
+. *Migration + RBAC* -- Runs database migrations and configures MLflow access
+
+Run it with a single command:
+
+[source,sh,role="execute"]
+----
+curl -sL https://raw.githubusercontent.com/hyogrin/rhoai-basic-agentops-workshop/main/scripts/deploy_demo_app.sh \
+  | bash -s -- "$LLM_BASE_URL" "$LLM_API_KEY" "$LLM_MODEL"
+----
+
+[TIP]
+====
+By default the script deploys into the `demo` namespace. To use a different namespace, pass `--namespace=<NS>`:
+
+[source,sh]
+----
+curl -sL https://raw.githubusercontent.com/hyogrin/rhoai-basic-agentops-workshop/main/scripts/deploy_demo_app.sh \
+  | bash -s -- "$LLM_BASE_URL" "$LLM_API_KEY" "$LLM_MODEL" --namespace=user-XX
+----
+====
+
+=== Step 2.4: Verify the Deployment
+
+Wait for the script to complete. You should see output similar to:
+
+[source,text]
+----
+  ✅ Backend   : https://inference-planner-api.apps.<cluster-domain>
+  ✅ Frontend  : https://inference-planner.apps.<cluster-domain>
+  ✅ MLflow    : enabled (experiment: inference-design-planner)
+  ✅ Database  : inference_planner@postgres.redhat-ods-applications.svc.cluster.local (reused)
+----
+
+image::img-deploy-script-output.png[Successful deployment script output]
+
+
+Confirm all pods are running:
+
+[source,sh,role="execute"]
+----
+oc get pods -n demo
+----
+
+image::img-pods-running.png[All pods running in demo namespace]
+
+
+All pods should show `Running` with all containers ready (`1/1` or `2/2`). If any pod shows `CrashLoopBackOff` or `Error`, check the pod events:
+
+[source,sh,role="execute"]
+----
+oc describe pod <pod-name> -n demo
+----
+
+=== Step 2.5: Access the Application
+
+Open the frontend URL shown in the deployment output in your browser. You should see the {demo-app-name} landing page.
+
+image::img-planner-landing.png[Inference Design Planner landing page]
+
+[TIP]
+====
+You can also retrieve the URL from the OpenShift Console under *Networking* > *Routes* in the `demo` namespace.
+====
+
+Generate some traffic by interacting with the application -- take a couple of steps to generate an inference design suggestion. This traffic will produce logs and traces that you will explore in the following exercises.
+
+image::img-planner-chat.png[Interacting with the Inference Design Planner]
+
+
+== Part 2: Explore Container Logs in OpenShift Console
+
+{ocp-short} provides a built-in log viewer that lets you inspect container output directly from the Console -- no additional log aggregation stack required. Every container's STDOUT and STDERR is captured automatically by the container runtime.
+
+=== Why Logs Matter for AgentOps
+
+For AI applications, logs reveal:
+
+* *LLM request/response cycles* -- what the model received and returned
+* *Tool call results* -- whether tools succeeded or failed
+* *Error traces* -- stack traces, timeouts, and unexpected exceptions
+* *MLflow trace IDs* -- correlation points between logs and traces (Module 3)
+
+=== Step 2.6: View Pod Logs from the Console
+
+. In the *{ocp-short} Console*, navigate to *Workloads* > *Pods*.
+. Make sure the *Project* dropdown at the top is set to `demo`.
+. Click on the *planner-backend* pod.
+
+image::img-pods-list.png[Pod list in the demo namespace]
+
+
+[start=4]
+. Click the *Logs* tab.
+
+image::img-pod-logs-tab.png[Backend pod Logs tab showing live output]
+
+You should see the backend application's log output in real time. The log stream includes FastAPI startup messages, incoming request logs, LLM call details, and MLflow trace events.
+
+=== Step 2.7: Filter Logs by Container
+
+If a pod has multiple containers (sidecars, init containers), use the *Container* dropdown above the log viewer to select a specific container.
+
+For the `planner-backend` pod, select the *backend* container to focus on the application logs.
+
+=== Step 2.8: Search Within Logs
+
+Use the *Search* bar at the top of the log viewer to filter for specific keywords:
+
+* Search `error` or `exception` to find error events
+* Search `mlflow` to find trace-related log entries
+* Search `token` or `inference` to find LLM interaction logs
+
+image::img-pod-logs-search.png[Searching within pod logs]
+
+
+[TIP]
+====
+Click the *↓* button (bottom-right) to auto-scroll and follow the log stream in real time. Click *Pause* to freeze the output for inspection.
+====
+
+=== Step 2.9: View Logs via the Terminal (Optional)
+
+You can also view logs from the Web Terminal using `oc logs`:
+
+*Tail the live backend log stream:*
+[source,sh,role="execute"]
+----
+oc logs -f deployment/planner-backend -n demo
+----
+
+*Show only the last 50 lines:*
+[source,sh,role="execute"]
+----
+oc logs deployment/planner-backend -n demo --tail=50
+----
+
+*Filter for specific patterns with grep:*
+[source,sh,role="execute"]
+----
+oc logs deployment/planner-backend -n demo --tail=200 | grep -i "error\|exception\|mlflow"
+----
+
+Press `Ctrl+C` to stop following the log stream.
+
+== Module Summary
+
+*What you accomplished:*
+
+* Deployed the {demo-app-name} with MLflow tracing using `deploy_demo_app.sh`
+* Verified the deployment (backend, frontend, database, MLflow)
+* Explored container logs using the {ocp-short} Console log viewer
+* Filtered and searched log output for errors, LLM interactions, and MLflow events
+
+*Key takeaways:*
+
+* {ocp-short} captures all container STDOUT/STDERR automatically -- no code changes required
+* The Console log viewer provides real-time streaming, container selection, and keyword search
+* `oc logs` gives you CLI-level access with grep and tail for deeper analysis
+* Logs tell you *what exactly happened and when* -- the foundation for debugging
+
+*Next steps:*
+
+In Module 3 you will explore *MLflow tracing*, which complements logs by showing the full execution path of each request -- not just individual events, but the hierarchical flow from user question through agent reasoning, tool calls, and LLM invocations.

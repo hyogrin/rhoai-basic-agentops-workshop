@@ -1,0 +1,52 @@
+<link rel="icon" href="{{uiRootPath}}/img/favicon.ico" type="image/x-icon">
+<style>
+/* --- Layout: expand content area, shrink right TOC sidebar --- */
+.body .content {
+  flex-grow: 1 !important;
+  max-width: none !important;
+}
+.doc {
+  max-width: none !important;
+  margin-left: 20px !important;
+  margin-right: 20px !important;
+}
+aside.toc.embedded {
+  flex-basis: 180px !important;
+  flex-shrink: 1 !important;
+  min-width: 140px !important;
+  max-width: 200px !important;
+}
+
+/* --- Images: render full-width and sharp --- */
+.doc .imageblock {
+  align-items: flex-start;
+}
+.doc .imageblock img {
+  max-width: 100% !important;
+  width: 100% !important;
+  height: auto !important;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+}
+
+/* add a shadow to bordered images */
+.doc .bordershadow .content {
+  border: solid 1px black;
+  box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
+}
+
+/* custom video css */
+video {
+  border: solid 1px black;
+  box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
+}
+
+/* --- Text: prevent awkward word breaks --- */
+.doc {
+  word-break: keep-all;
+  overflow-wrap: normal;
+  hyphens: none;
+  -webkit-hyphens: none;
+  -ms-hyphens: none;
+}
+</style>

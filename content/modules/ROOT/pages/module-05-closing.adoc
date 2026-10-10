@@ -1,0 +1,82 @@
+:imagesdir: ../assets/images
+
+[#closing]
+= Closing and Resources
+
+Congratulations -- you have completed the *Basic AgentOps on Red Hat AI* workshop!
+
+== What You Accomplished
+
+[cols="1,3",options="header"]
+|===
+| Module | What You Did
+
+| 1 -- Introduction
+| Learned what AgentOps is, why traditional monitoring falls short for AI agents, and how the three pillars of observability (logs, traces, metrics) address these challenges
+
+| 2 -- Deploy App and Explore Logs
+| Deployed the {demo-app-name} with MLflow tracing using `deploy_demo_app.sh`, then explored container logs via the {ocp-short} Console log viewer and `oc logs`
+
+| 3 -- Tracing with MLflow
+| Navigated the MLflow Tracking Server to find request traces, analysed execution timelines and span hierarchies, inspected tool call inputs/outputs and LLM prompts/completions
+
+| 4 -- GPU and Resource Monitoring
+| Queried GPU utilisation, memory, and temperature via NVIDIA DCGM metrics, monitored pod CPU and memory usage, and correlated GPU activity with application inference patterns
+|===
+
+== Key Takeaways
+
+*AgentOps extends traditional DevOps observability to handle the unique challenges of AI applications:*
+
+* *Logs* ({ocp-short} Console + `oc logs`) capture what happened and when -- essential for debugging failures and auditing events. {ocp-short} captures all container output automatically with no code changes required.
+
+* *Traces* (MLflow) capture why things happened -- the full execution path from user question through LLM calls, tool invocations, and response generation. MLflow autolog enables this with a single line of code.
+
+* *Metrics* ({ocp-short} Observe + NVIDIA DCGM) capture how much and how fast -- GPU utilisation, memory pressure, pod resource consumption. These metrics help you right-size deployments and detect performance bottlenecks.
+
+Together, these three pillars give you *complete visibility* into your AI application:
+
+[cols="1,2,2",options="header"]
+|===
+| Pillar | Answers | Tool
+
+| Logs
+| _What exactly happened?_
+| {ocp-short} Console + `oc logs`
+
+| Traces
+| _Why did it happen? What was the flow?_
+| MLflow Tracing
+
+| Metrics
+| _How much? How fast? How loaded?_
+| {ocp-short} Observe + NVIDIA DCGM
+|===
+
+== Additional Resources
+
+=== {productname-long}
+
+* https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/{rhoai-version}[{productname-long} {rhoai-version} Documentation]
+* https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/{rhoai-version}/html/serving_models[Serving Models on {productname-short}]
+
+=== MLflow
+
+* https://mlflow.org/docs/latest/llms/tracing/index.html[MLflow Tracing Documentation]
+* https://mlflow.org/docs/latest/llms/tracing/tracing-schema.html[MLflow Tracing Schema Reference]
+* https://mlflow.org/docs/latest/tracking.html[MLflow Tracking Guide]
+
+=== Logging
+
+* https://docs.openshift.com/container-platform/latest/nodes/pods/nodes-pods-viewing.html[Viewing Pods and Pod Logs in {ocp-short}]
+* https://docs.openshift.com/container-platform/latest/observability/logging/about/about-logging.html[{ocp-short} Logging Overview (LokiStack -- for production-scale log aggregation)]
+
+=== GPU Monitoring
+
+* https://docs.nvidia.com/datacenter/dcgm/latest/user-guide/index.html[NVIDIA DCGM User Guide]
+* https://docs.nvidia.com/datacenter/cloud-native/gpu-operator/latest/getting-started.html[NVIDIA GPU Operator Documentation]
+* https://docs.openshift.com/container-platform/latest/observability/monitoring/managing-metrics.html[{ocp-short} Managing Metrics]
+
+=== Related Workshops
+
+* https://rhpds.github.io/agentops-in-prod-showroom/[AgentOps Observability with Red Hat AI] -- Advanced workshop covering LokiStack log aggregation, Grafana dashboards, agent evaluations, and CI/CD pipelines for AI observability

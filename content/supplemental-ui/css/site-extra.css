@@ -1,0 +1,73 @@
+/* --- Layout: expand content area, shrink right TOC sidebar --- */
+
+/* Main content column takes most of the available width */
+.body.container .content {
+    flex-grow: 1;
+    max-width: none;
+}
+
+/* Shrink the right-side TOC (Contents) sidebar */
+.body.container aside.toc {
+    flex-basis: 180px;
+    flex-shrink: 1;
+    min-width: 140px;
+}
+
+/* On screens wide enough, let article fill available space */
+.doc {
+    max-width: none;
+}
+
+/* --- Images: render full-width and sharp --- */
+
+/* left align items inside imageblock */
+.doc .imageblock {
+    align-items: flex-start;
+}
+
+/* screenshots fill the content column */
+.doc .imageblock img {
+    max-width: 100%;
+    width: 100%;
+    height: auto;
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+}
+
+/* add a shadow to bordered images */
+.doc .bordershadow .content {
+    border: solid 1px black;
+    box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
+}
+
+/* custom video css */
+video {
+    border: solid 1px black;
+    box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
+}
+
+/* --- Navbar dropdowns --- */
+
+.navbar-item-right-dropdown {
+    float: right !important;
+}
+
+.navbar-dropdown-right {
+    right: 0;
+    left: auto;
+}
+
+.navbar-item-right-content {
+    width: 100%;
+    background-color: #131313;
+}
+
+/* --- Text: prevent awkward word breaks --- */
+
+.doc {
+    word-break: keep-all;
+    overflow-wrap: normal;
+    hyphens: none;
+    -webkit-hyphens: none;
+    -ms-hyphens: none;
+}
