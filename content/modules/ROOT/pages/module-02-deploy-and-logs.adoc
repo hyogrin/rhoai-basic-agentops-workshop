@@ -106,10 +106,24 @@ Confirm all pods are running:
 oc get pods -n demo
 ----
 
-image::img-pods-running.png[All pods running in demo namespace]
+You should see three pods:
 
+[source,text]
+----
+NAME                                  READY   STATUS      RESTARTS   AGE
+planner-backend-xxxxxxxxx-xxxxx      1/1     Running     0          2m
+planner-db-migrate-xxxxx             0/1     Completed   0          3m
+planner-frontend-xxxxxxxxx-xxxxx     1/1     Running     0          2m
+----
 
-All pods should show `Running` with all containers ready (`1/1` or `2/2`). If any pod shows `CrashLoopBackOff` or `Error`, check the pod events:
+// TODO: replace img-pods-running.png with a clean screenshot showing only these 3 pods
+image::img-pods-running.png[Pods running in demo namespace]
+
+* `planner-backend` and `planner-frontend` should show `Running` with `1/1` ready.
+* `planner-db-migrate` is a one-time database migration Job -- `Completed` with `0/1` is expected.
+* If your namespace has other pods from separate deployments (model serving, other demos), those are unrelated to this workshop.
+
+If any pod shows `CrashLoopBackOff` or `Error`, check the pod events:
 
 [source,sh,role="execute"]
 ----
