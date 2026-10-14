@@ -11,7 +11,7 @@ Created: 2026-10-09
 === Links
 
 * *Live docs:* https://hyochoi.github.io/rhoai-basic-agentops-workshop/modules/main/index.html
-* *Repository:* https://github.com/hyochoi/rhoai-basic-agentops-workshop
+* *Repository:* https://github.com/hyogrin/rhoai-basic-agentops-workshop
 
 ---
 
