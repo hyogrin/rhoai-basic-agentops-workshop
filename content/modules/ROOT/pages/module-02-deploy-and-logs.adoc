@@ -118,14 +118,16 @@ oc describe pod <pod-name> -n demo
 
 === Step 2.5: Access the Application
 
-Open the frontend URL shown in the deployment output in your browser. You should see the {demo-app-name} landing page.
-
-image::img-planner-landing.png[Inference Design Planner landing page]
-
 [TIP]
 ====
 You can also retrieve the URL from the OpenShift Console under *Networking* > *Routes* in the `demo` namespace.
+
+image::img-app-routes.png[Routes in the demo namespace showing frontend and backend URLs]
 ====
+
+Open the frontend URL shown in the deployment output in your browser. You should see the {demo-app-name} landing page.
+
+image::img-planner-landing.png[Inference Design Planner landing page]
 
 Generate some traffic by interacting with the application -- take a couple of steps to generate an inference design suggestion. This traffic will produce logs and traces that you will explore in the following exercises.
 

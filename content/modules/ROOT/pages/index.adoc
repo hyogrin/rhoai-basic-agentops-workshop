@@ -6,4 +6,4 @@ In this hands-on lab you will deploy an AI-powered application, then learn how t
 
 xref:module-01-introduction.adoc#introduction[Get Started -- Module 1: Introduction]
 
-Source repository: https://github.com/hyochoi/rhoai-basic-agentops-workshop
+Source repository: https://github.com/hyogrin/rhoai-basic-agentops-workshop
