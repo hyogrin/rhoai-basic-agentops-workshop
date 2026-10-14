@@ -143,9 +143,34 @@ Open the frontend URL shown in the deployment output in your browser. You should
 
 image::img-planner-landing.png[Inference Design Planner landing page]
 
-Generate some traffic by interacting with the application -- take a couple of steps to generate an inference design suggestion. This traffic will produce logs and traces that you will explore in the following exercises.
+=== Step 2.6: Generate Traffic
 
-image::img-planner-chat.png[Interacting with the Inference Design Planner]
+The *{demo-app-name}* is an AI-powered tool that recommends GPU inference deployment configurations for large language models on {ocp-short}. You provide a model name, select your hardware constraints, and the application uses an LLM to analyse the model's requirements and generate a deployment recommendation -- including GPU type, count, and serving configuration.
+
+Behind the scenes, each analysis triggers multiple LLM calls, tool invocations, and database queries -- exactly the kind of multi-step AI workflow that requires AgentOps observability.
+
+[NOTE]
+====
+The application supports multiple languages (English, Korean, Chinese, Japanese). You can switch languages using the dropdown in the top-right corner.
+
+image::img-change-language.png[Language selector showing English, Korean, Chinese, and Japanese options]
+====
+
+Follow these steps to generate sample traffic for the observability exercises in Modules 3 and 4.
+
+. Go to https://huggingface.co/Qwen/Qwen3.8-27B[Hugging Face^] (or any model page) and copy the model name.
++
+image::img-hf-modelname.png[Copying the model name from Hugging Face]
+
+. On the {demo-app-name} landing page, paste the model name (e.g., `Qwen/Qwen3.8-27B`) into the *Hugging Face Model ID* field. Select a deployment platform (e.g., *On-Premise*) and a GPU configuration, then click *Start Analysis*.
++
+image::img-sample-traffic-1.png[Filling in model identity and selecting hardware pool]
+
+. The application will run a multi-step analysis. Wait for the results -- you should see the planner progressing through evidence discovery, readiness checks, and workload profiling before producing a recommendation.
++
+image::img-sample-traffic-2.png[Analysis in progress with GPU configuration selected]
+
+Each analysis generates logs, MLflow traces, and GPU activity that you will inspect in the following modules.
 
 
 == Part 2: Explore Container Logs in OpenShift Console
