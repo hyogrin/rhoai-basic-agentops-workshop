@@ -400,6 +400,11 @@ spec:
           ports:
             - containerPort: 3000
               name: http
+          env:
+            - name: NEXT_PUBLIC_API_URL
+              value: "https://inference-planner-api.${CLUSTER_DOMAIN}"
+            - name: NEXT_PUBLIC_AGENT_URL
+              value: "https://inference-planner-api.${CLUSTER_DOMAIN}/agent"
           resources:
             requests:
               cpu: 100m
