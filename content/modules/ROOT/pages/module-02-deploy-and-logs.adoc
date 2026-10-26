@@ -57,12 +57,21 @@ export LLM_API_KEY="<MaaS subscription API key>"
 
 [source,sh,role="execute"]
 ----
-export LLM_MODEL="publishers/demo/models/redhataigemma-4-e4b-it"
+export LLM_MODEL="<MaaS model path>"
 ----
 
 [NOTE]
 ====
 Replace the placeholder values with your actual cluster subdomain, API key, and model name. These are either provided by your instructor or carried over from your previous lab deployment.
+
+For example, if your cluster domain is `ocp.5sh6j.sandbox1809.opentlc.com`, your user is `user01`, and you deployed the Gemma 4 E4B model:
+
+[source,sh]
+----
+export LLM_BASE_URL="https://maas.apps.ocp.5sh6j.sandbox1809.opentlc.com"
+export LLM_API_KEY="sk-oai-<your-api-key>"
+export LLM_MODEL="publishers/user01/models/redhataigemma-4-e4b-it"
+----
 ====
 
 === Step 2.3: Run the Deployment Script
