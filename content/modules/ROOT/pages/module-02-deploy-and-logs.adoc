@@ -5,12 +5,13 @@
 
 In this module you will deploy the *{demo-app-name}* application into your cluster and then explore its application logs using LokiStack in the {ocp-short} Console.
 
-The module has two parts:
+The module has three parts:
 
-* *Part 1* -- Deploy the demo app (backend, frontend, database, and MLflow integration)
-* *Part 2* -- Explore application logs with LokiStack and LogQL
+* *Part A* -- Deploy the demo app (backend, frontend, database, and MLflow integration)
+* *Part B* -- Use the application to generate traffic (logs and traces for later modules)
+* *Part C* -- Explore application logs in the {ocp-short} Console
 
-== Part 1: Deploy the Demo App
+== Part A: Deploy the Demo App
 
 The {demo-app-name} is a full-stack AI application consisting of:
 
@@ -42,18 +43,26 @@ This gives you an in-browser terminal with `oc`, `git`, and common CLI tools pre
 
 === Step 2.2: Set Environment Variables
 
-The deployment script requires three parameters: the LLM base URL, an API key, and the model name. Your instructor will provide these values.
+The deployment script requires three parameters: the LLM base URL, an API key, and the model name. Your instructor will provide these values, or if this is a continuation of a previous lab, use the model endpoint and API key from your earlier deployment.
 
 [source,sh,role="execute"]
 ----
 export LLM_BASE_URL="https://maas.apps.ocp.xxxxxxxxxxxxxx.opentlc.com"
+----
+
+[source,sh,role="execute"]
+----
 export LLM_API_KEY="<MaaS subscription API key>"
+----
+
+[source,sh,role="execute"]
+----
 export LLM_MODEL="publishers/demo/models/redhataigemma-4-e4b-it"
 ----
 
 [NOTE]
 ====
-Replace `xxxxxxxxxxxxxx` in the URL with your actual cluster subdomain, and set your API key as provided by the instructor.
+Replace the placeholder values with your actual cluster subdomain, API key, and model name. These are either provided by your instructor or carried over from your previous lab deployment.
 ====
 
 === Step 2.3: Run the Deployment Script
@@ -143,7 +152,9 @@ Open the frontend URL shown in the deployment output in your browser. You should
 
 image::img-planner-landing.png[Inference Design Planner landing page]
 
-=== Step 2.6: Generate Traffic
+== Part B: Use the Application
+
+=== Step 2.6: About the Application
 
 The *{demo-app-name}* is an AI-powered tool that recommends GPU inference deployment configurations for large language models on {ocp-short}. You provide a model name, select your hardware constraints, and the application uses an LLM to analyse the model's requirements and generate a deployment recommendation -- including GPU type, count, and serving configuration.
 
@@ -156,9 +167,11 @@ The application supports multiple languages (English, Korean, Chinese, Japanese)
 image::img-change-language.png[Language selector showing English, Korean, Chinese, and Japanese options]
 ====
 
-Follow these steps to generate sample traffic for the observability exercises in Modules 3 and 4.
+=== Step 2.7: Generate Sample Traffic
 
-. Go to https://huggingface.co/Qwen/Qwen3.8-27B[Hugging Face^] (or any model page) and copy the model name.
+In this step you will run through the application to generate sample traffic. The logs, MLflow traces, and GPU activity produced here are what you will inspect in Modules 3 and 4.
+
+. You can search for any model on https://huggingface.co/models[Hugging Face^]. For this example, go to the https://huggingface.co/Qwen/Qwen3.8-27B[Qwen3.8-27B model page^] and copy the model name.
 +
 image::img-hf-modelname.png[Copying the model name from Hugging Face]
 
@@ -170,10 +183,10 @@ image::img-sample-traffic-1.png[Filling in model identity and selecting hardware
 +
 image::img-sample-traffic-2.png[Analysis in progress with GPU configuration selected]
 
-Each analysis generates logs, MLflow traces, and GPU activity that you will inspect in the following modules.
+. Once the analysis completes, review the recommendation. Try running a second analysis with a different model or GPU configuration to generate additional traces.
 
 
-== Part 2: Explore Container Logs in OpenShift Console
+== Part C: Explore Container Logs in OpenShift Console
 
 {ocp-short} provides a built-in log viewer that lets you inspect container output directly from the Console -- no additional log aggregation stack required. Every container's STDOUT and STDERR is captured automatically by the container runtime.
 
@@ -186,7 +199,7 @@ For AI applications, logs reveal:
 * *Error traces* -- stack traces, timeouts, and unexpected exceptions
 * *MLflow trace IDs* -- correlation points between logs and traces (Module 3)
 
-=== Step 2.6: View Pod Logs from the Console
+=== Step 2.8: View Pod Logs from the Console
 
 . In the *{ocp-short} Console*, navigate to *Workloads* > *Pods*.
 . Make sure the *Project* dropdown at the top is set to `demo`.
@@ -202,13 +215,13 @@ image::img-pod-logs-tab.png[Backend pod Logs tab showing live output]
 
 You should see the backend application's log output in real time. The log stream includes FastAPI startup messages, incoming request logs, LLM call details, and MLflow trace events.
 
-=== Step 2.7: Filter Logs by Container
+=== Step 2.9: Filter Logs by Container
 
 If a pod has multiple containers (sidecars, init containers), use the *Container* dropdown above the log viewer to select a specific container.
 
 For the `planner-backend` pod, select the *backend* container to focus on the application logs.
 
-=== Step 2.8: Search Within Logs
+=== Step 2.10: Search Within Logs
 
 Use the *Search* bar at the top of the log viewer to filter for specific keywords:
 
@@ -224,7 +237,7 @@ image::img-pod-logs-search.png[Searching within pod logs]
 Click the *↓* button (bottom-right) to auto-scroll and follow the log stream in real time. Click *Pause* to freeze the output for inspection.
 ====
 
-=== Step 2.9: View Logs via the Terminal (Optional)
+=== Step 2.11: View Logs via the Terminal (Optional)
 
 You can also view logs from the Web Terminal using `oc logs`:
 
@@ -252,9 +265,9 @@ Press `Ctrl+C` to stop following the log stream.
 
 *What you accomplished:*
 
-* Deployed the {demo-app-name} with MLflow tracing using `deploy_demo_app.sh`
-* Verified the deployment (backend, frontend, database, MLflow)
-* Explored container logs using the {ocp-short} Console log viewer
+* Deployed the {demo-app-name} with MLflow tracing using `deploy_demo_app.sh` (Part A)
+* Used the application to generate sample traffic for observability analysis (Part B)
+* Explored container logs using the {ocp-short} Console log viewer (Part C)
 * Filtered and searched log output for errors, LLM interactions, and MLflow events
 
 *Key takeaways:*
