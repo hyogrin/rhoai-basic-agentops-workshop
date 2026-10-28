@@ -69,7 +69,7 @@ Together, these three pillars give you *complete visibility* into your AI applic
 === Logging
 
 * https://docs.openshift.com/container-platform/latest/nodes/pods/nodes-pods-viewing.html[Viewing Pods and Pod Logs in {ocp-short}]
-* https://docs.openshift.com/container-platform/latest/observability/logging/about/about-logging.html[{ocp-short} Logging Overview (LokiStack -- for production-scale log aggregation)]
+* https://docs.openshift.com/container-platform/latest/observability/logging/about/about-logging.html[{ocp-short} Logging Overview] -- covers production-scale log aggregation with LokiStack
 
 === GPU Monitoring
 
@@ -79,4 +79,4 @@ Together, these three pillars give you *complete visibility* into your AI applic
 
 === Related Workshops
 
-* https://rhpds.github.io/agentops-in-prod-showroom/[AgentOps Observability with Red Hat AI] -- Advanced workshop covering LokiStack log aggregation, Grafana dashboards, agent evaluations, and CI/CD pipelines for AI observability
+* https://rhpds.github.io/agentops-in-prod-showroom/[AgentOps Observability with Red Hat AI] -- Advanced workshop covering log aggregation, Grafana dashboards, agent evaluations, and CI/CD pipelines for AI observability

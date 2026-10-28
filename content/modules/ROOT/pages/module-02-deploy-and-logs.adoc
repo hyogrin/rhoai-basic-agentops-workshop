@@ -3,7 +3,7 @@
 [#deploy-and-logs]
 = Deploy the Demo App and Explore Logs
 
-In this module you will deploy the *{demo-app-name}* application into your cluster and then explore its application logs using LokiStack in the {ocp-short} Console.
+In this module you will deploy the *{demo-app-name}* application into your cluster and then explore its application logs in the {ocp-short} Console.
 
 The module has three parts:
 

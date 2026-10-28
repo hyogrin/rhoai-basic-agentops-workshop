@@ -78,7 +78,7 @@ In this workshop you will deploy the *{demo-app-name}* -- an AI-powered applicat
 By the end, you will be able to:
 
 * Deploy an AI application with built-in observability on {productname-short}
-* Explore application logs using LokiStack and LogQL in the {ocp-short} Console
+* Explore application logs using the {ocp-short} Console
 * Analyse request traces, spans, tool calls, and LLM invocations in MLflow
 * Monitor GPU utilisation and pod resource consumption through {ocp-short} built-in monitoring
 
@@ -114,7 +114,6 @@ Before starting, confirm the following are ready:
 * A GPU hardware profile created by your administrator
 * MLflow Tracking Server deployed (via `sno-enable-all-features-35.sh`)
 * PostgreSQL running in `redhat-ods-applications` namespace (via `sno-setup-maas-35.sh`)
-* LokiStack configured for application log collection (optional -- the workshop uses built-in {ocp-short} container logs)
 * NVIDIA DCGM Exporter enabled for GPU metrics
 * Your login credentials (username and password provided by your instructor)
 
