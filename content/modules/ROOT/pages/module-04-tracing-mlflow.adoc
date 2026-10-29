@@ -94,8 +94,13 @@ In {productname-long} 3.5, MLflow is built into the {ocp-short} AI Dashboard. No
 . In the {ocp-short} AI Dashboard, open the left sidebar and click *Experiments* under *MLflow*.
 +
 You will see the list of experiments for your data science project.
++
+[NOTE]
+====
+If the *Experiments* tab does not appear, you may have deployed the application but not yet sent any traffic. The MLflow server is running, but experiments only become visible in the dashboard after the application records its first trace. Go back to Module 2 Step 2.7 and run at least one analysis before continuing.
+====
 
-image::img-mlflow-experiment-select.png[Selecting the inference-design-planner experiment]
+image::img-experiments.png[Experiments page showing the inference-design-planner experiment in the demo project]
 
 [start=2]
 . Select the *{mlflow-experiment}* experiment.
@@ -107,7 +112,7 @@ This is the experiment configured by the {demo-app-name} where all traces are re
 
 In Module 2 you interacted with the {demo-app-name} and generated traffic. MLflow captured every step of those interactions. Let's find those traces.
 
-=== Step 3.1: View the Traces List
+=== Step 4.1: View the Traces List
 
 . In the experiment view, click *Traces* in the left sidebar.
 +
@@ -129,7 +134,7 @@ Each row shows:
 image::img-mlflow-overview.png[MLflow overview showing captured requests]
 
 
-=== Step 3.2: Examine the Trace Summary
+=== Step 4.2: Examine the Trace Summary
 
 The Summary tab reveals what was invisible during normal application use:
 
@@ -140,7 +145,7 @@ The Summary tab reveals what was invisible during normal application use:
 image::img-mlflow-trace-summary.png[MLflow trace summary showing inputs, spans, and outputs]
 
 
-=== Step 3.3: Explore the Execution Timeline
+=== Step 4.3: Explore the Execution Timeline
 
 . Click the *Details & Timeline* tab.
 . Click *Show execution timeline* to see the full trace breakdown.
@@ -189,7 +194,7 @@ Traces and logs serve different but complementary purposes:
 
 [cols="1,2,2",options="header"]
 |===
-| Aspect | Logs (Module 2) | Traces (Module 3)
+| Aspect | Logs (Module 3) | Traces (Module 4)
 
 | *Focus*
 | Individual events
@@ -208,7 +213,7 @@ Traces and logs serve different but complementary purposes:
 | _Why did it happen? What was the flow?_
 |===
 
-Together, logs and traces give you complete visibility: logs for the detailed events and traces for the request flow. In Module 4 you will add the third pillar -- *metrics* -- to monitor GPU utilisation and resource consumption.
+Together, logs and traces give you complete visibility: logs for the detailed events and traces for the request flow. In Module 5 you will add the third pillar -- *metrics* -- to monitor GPU utilisation and resource consumption.
 
 == Module Summary
 
@@ -229,4 +234,4 @@ Together, logs and traces give you complete visibility: logs for the detailed ev
 
 *Next steps:*
 
-Module 4 introduces *GPU and resource monitoring* using the {ocp-short} Console built-in observability tools, completing the three pillars of AgentOps observability.
+Module 5 introduces *GPU and resource monitoring* using the {ocp-short} Console built-in observability tools, completing the three pillars of AgentOps observability.

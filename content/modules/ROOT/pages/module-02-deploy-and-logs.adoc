@@ -1,15 +1,14 @@
 :imagesdir: ../assets/images
 
-[#deploy-and-logs]
-= Deploy the Demo App and Explore Logs
+[#deploy-and-use]
+= Deploy and Use the Demo App
 
-In this module you will deploy the *{demo-app-name}* application into your cluster and then explore its application logs in the {ocp-short} Console.
+In this module you will deploy the *{demo-app-name}* application into your cluster and use it to generate traffic for the observability exercises in later modules.
 
-The module has three parts:
+The module has two parts:
 
 * *Part A* -- Deploy the demo app (backend, frontend, database, and MLflow integration)
-* *Part B* -- Use the application to generate traffic (logs and traces for later modules)
-* *Part C* -- Explore application logs in the {ocp-short} Console
+* *Part B* -- Use the application to generate sample traffic
 
 == Part A: Deploy the Demo App
 
@@ -108,10 +107,10 @@ Wait for the script to complete. You should see output similar to:
 
 [source,text]
 ----
-  ✅ Backend   : https://inference-planner-api.apps.<cluster-domain>
-  ✅ Frontend  : https://inference-planner.apps.<cluster-domain>
-  ✅ MLflow    : enabled (experiment: inference-design-planner)
-  ✅ Database  : inference_planner@postgres.redhat-ods-applications.svc.cluster.local (reused)
+  Backend   : https://inference-planner-api.apps.<cluster-domain>
+  Frontend  : https://inference-planner.apps.<cluster-domain>
+  MLflow    : enabled (experiment: inference-design-planner)
+  Database  : inference_planner@postgres.redhat-ods-applications.svc.cluster.local (reused)
 ----
 
 image::img-deploy-script-output.png[Successful deployment script output]
@@ -165,9 +164,11 @@ image::img-planner-landing.png[Inference Design Planner landing page]
 
 === Step 2.6: About the Application
 
-The *{demo-app-name}* is an AI-powered tool that recommends GPU inference deployment configurations for large language models on {ocp-short}. You provide a model name, select your hardware constraints, and the application uses an LLM to analyse the model's requirements and generate a deployment recommendation -- including GPU type, count, and serving configuration.
+One of the most common questions enterprises face when adopting LLMs is: _"Which GPU do I need, how many, and how should I configure serving for this model?"_ Getting this wrong means either overspending on hardware or failing to meet latency requirements. Most teams start by manually reading model cards, cross-referencing VRAM requirements, and guessing at deployment parameters.
 
-Behind the scenes, each analysis triggers multiple LLM calls, tool invocations, and database queries -- exactly the kind of multi-step AI workflow that requires AgentOps observability.
+The *{demo-app-name}* addresses this by using an LLM to automate the analysis. You provide a model name from Hugging Face, select your hardware constraints (platform, GPU type, count, interconnect), and the application generates an evidence-backed deployment recommendation -- including GPU selection, memory calculations, and serving configuration for {ocp-short}.
+
+Behind the scenes, each analysis triggers multiple LLM calls, tool invocations, and database queries -- exactly the kind of multi-step AI workflow that requires AgentOps observability. This makes it an ideal demo application: it solves a real problem that practitioners encounter, while generating the rich, multi-step execution traces needed to learn observability techniques.
 
 [NOTE]
 ====
@@ -178,114 +179,76 @@ image::img-change-language.png[Language selector showing English, Korean, Chines
 
 === Step 2.7: Generate Sample Traffic
 
-In this step you will run through the application to generate sample traffic. The logs, MLflow traces, and GPU activity produced here are what you will inspect in Modules 3 and 4.
+In this step you will run through the application to generate sample traffic. The logs, MLflow traces, and GPU activity produced here are what you will inspect in Modules 3, 4, and 5.
 
-. You can search for any model on https://huggingface.co/models[Hugging Face^]. For this example, go to the https://huggingface.co/Qwen/Qwen3.8-27B[Qwen3.8-27B model page^] and copy the model name.
+*Step 1 of 5 -- Model & Hardware:*
+
+. Search for a model you are considering for a use case on https://huggingface.co/models[Hugging Face^]. For this example, we will use the https://huggingface.co/Qwen/Qwen3.8-27B[Qwen3.8-27B model page^]. Copy the model name.
 +
 image::img-hf-modelname.png[Copying the model name from Hugging Face]
 
-. On the {demo-app-name} landing page, paste the model name (e.g., `Qwen/Qwen3.8-27B`) into the *Hugging Face Model ID* field. Select a deployment platform (e.g., *On-Premise*) and a GPU configuration, then click *Start Analysis*.
+. On the {demo-app-name} landing page, paste the model name (e.g., `Qwen/Qwen3.8-27B`) into the *Hugging Face Model ID* field. Select a deployment platform, GPU type, and number of GPUs that match your current hardware setup or an envisioned one, then click *Start Analysis*.
 +
-image::img-sample-traffic-1.png[Filling in model identity and selecting hardware pool]
-
-. The application will run a multi-step analysis. Wait for the results -- you should see the planner progressing through evidence discovery, readiness checks, and workload profiling before producing a recommendation.
+image::inference-planner-app/img-sample-traffic-1.png[Filling in model identity and selecting hardware pool]
 +
-image::img-sample-traffic-2.png[Analysis in progress with GPU configuration selected]
+image::inference-planner-app/img-sample-traffic-2.png[Selecting GPU type, count, and interconnect]
 
-. Once the analysis completes, review the recommendation. Try running a second analysis with a different model or GPU configuration to generate additional traces.
+*Step 2 of 5 -- Evidence Discovery:*
 
+[start=3]
+. The application gathers deployment evidence from multiple sources using MCP (Model Context Protocol) tools behind the scenes. It searches for model architecture details, vLLM serving recipes, Red Hat evaluation results, RHOAI compatibility data, and GPU pricing -- all automatically.
++
+image::inference-planner-app/img-discovery-1.png[Evidence Discovery -- web search results from multiple sources]
++
+The activity log shows the evidence items collected, pages read, and validation steps performed. This is the multi-step AI orchestration that generates the rich traces you will inspect in Module 4. Click *Next* to proceed.
++
+image::inference-planner-app/img-discovery.png[Evidence Discovery -- content research and activity log]
 
-== Part C: Explore Container Logs in OpenShift Console
-
-{ocp-short} provides a built-in log viewer that lets you inspect container output directly from the Console -- no additional log aggregation stack required. Every container's STDOUT and STDERR is captured automatically by the container runtime.
-
-=== Why Logs Matter for AgentOps
-
-For AI applications, logs reveal:
-
-* *LLM request/response cycles* -- what the model received and returned
-* *Tool call results* -- whether tools succeeded or failed
-* *Error traces* -- stack traces, timeouts, and unexpected exceptions
-* *MLflow trace IDs* -- correlation points between logs and traces (Module 3)
-
-=== Step 2.8: View Pod Logs from the Console
-
-. In the *{ocp-short} Console*, navigate to *Workloads* > *Pods*.
-. Make sure the *Project* dropdown at the top is set to `demo`.
-. Click on the *planner-backend* pod.
-
-image::img-pods-list.png[Pod list in the demo namespace]
-
+*Step 3 of 5 -- Readiness Gate:*
 
 [start=4]
-. Click the *Logs* tab.
+. This step validates deployment feasibility before generating a recommendation -- checking whether the model fits within the selected GPU memory, whether the hardware configuration is supported, and whether any blockers exist. Click *Next* to proceed.
 
-image::img-pod-logs-tab.png[Backend pod Logs tab showing live output]
+*Step 4 of 5 -- Workload Profile:*
 
-You should see the backend application's log output in real time. The log stream includes FastAPI startup messages, incoming request logs, LLM call details, and MLflow trace events.
+[start=5]
+. Select the use case pattern you have in mind (e.g., Chatbot, RAG, Coding Assistant, Agentic, Batch). You can multi-select and adjust the traffic distribution between them. Also specify your target number of concurrent end users. Click *Generate Recommendation*.
++
+image::inference-planner-app/img-usecase-selection.png[Workload Profile -- selecting use case patterns and traffic distribution]
 
-=== Step 2.9: Filter Logs by Container
+*Step 5 of 5 -- Recommendation:*
 
-If a pod has multiple containers (sidecars, init containers), use the *Container* dropdown above the log viewer to select a specific container.
+[start=6]
+. Using the model endpoint you provided, the application generates a comprehensive deployment analysis. The recommendation page includes:
++
+--
+* *Model Overview and Collected Evidence* -- a summary of the model architecture, parameters, and the 33 evidence items gathered during discovery.
+* *Deployment, Memory, and Cost* -- GPU selection, VRAM utilisation breakdown (model weights, KV cache, overhead), and estimated monthly TCO.
 
-For the `planner-backend` pod, select the *backend* container to focus on the application logs.
+image::inference-planner-app/img-reco-1.png[Recommendation -- model overview, deployment, memory, and cost analysis]
 
-=== Step 2.10: Search Within Logs
+* *Performance Forecast* -- theoretical throughput, estimated TPOT and TTFT, throughput vs batch size chart, and the calculation method breakdown (memory-bandwidth bound, roofline model, compute-bound analysis).
 
-Use the *Search* bar at the top of the log viewer to filter for specific keywords:
+image::inference-planner-app/img-reco-2.png[Recommendation -- performance forecast and calculation method]
 
-* Search `error` or `exception` to find error events
-* Search `mlflow` to find trace-related log entries
-* Search `token` or `inference` to find LLM interaction logs
+* *Inference Design Suggestion* -- architecture direction, key considerations, risk factors, and alternative approaches.
 
-image::img-pod-logs-search.png[Searching within pod logs]
+image::inference-planner-app/img-reco-3.png[Recommendation -- inference design suggestion with risk factors and alternatives]
+--
 
-
-[TIP]
-====
-Click the *↓* button (bottom-right) to auto-scroll and follow the log stream in real time. Click *Pause* to freeze the output for inspection.
-====
-
-=== Step 2.11: View Logs via the Terminal (Optional)
-
-You can also view logs from the Web Terminal using `oc logs`:
-
-*Tail the live backend log stream:*
-[source,sh,role="execute"]
-----
-oc logs -f deployment/planner-backend -n demo
-----
-
-*Show only the last 50 lines:*
-[source,sh,role="execute"]
-----
-oc logs deployment/planner-backend -n demo --tail=50
-----
-
-*Filter for specific patterns with grep:*
-[source,sh,role="execute"]
-----
-oc logs deployment/planner-backend -n demo --tail=200 | grep -i "error\|exception\|mlflow"
-----
-
-Press `Ctrl+C` to stop following the log stream.
+. You may try running multiple analyses with different models or GPU configurations for comparison. To compare, click *Saved Recommendations*, select two results, then click *Compare*. The application displays a side-by-side comparison with differences highlighted across deployment, memory, cost, and performance fields.
++
+image::inference-planner-app/img-compare.png[Side-by-side comparison with highlighted differences]
++
+Each run generates additional traces for the observability exercises in the following modules.
 
 == Module Summary
 
 *What you accomplished:*
 
-* Deployed the {demo-app-name} with MLflow tracing using `deploy_demo_app.sh` (Part A)
-* Used the application to generate sample traffic for observability analysis (Part B)
-* Explored container logs using the {ocp-short} Console log viewer (Part C)
-* Filtered and searched log output for errors, LLM interactions, and MLflow events
-
-*Key takeaways:*
-
-* {ocp-short} captures all container STDOUT/STDERR automatically -- no code changes required
-* The Console log viewer provides real-time streaming, container selection, and keyword search
-* `oc logs` gives you CLI-level access with grep and tail for deeper analysis
-* Logs tell you *what exactly happened and when* -- the foundation for debugging
+* Deployed the {demo-app-name} with MLflow tracing using `deploy_demo_app.sh`
+* Used the application to generate sample traffic for observability analysis
 
 *Next steps:*
 
-In Module 3 you will explore *MLflow tracing*, which complements logs by showing the full execution path of each request -- not just individual events, but the hierarchical flow from user question through agent reasoning, tool calls, and LLM invocations.
+Now that you have generated traffic, it is time to dive deeper. In Module 3 you will explore the logs your traffic created using the {ocp-short} Console -- the first pillar of AgentOps observability.

@@ -55,11 +55,11 @@ Together, the three pillars give you complete observability:
 | {ocp-short} Console pod logs
 | _What exactly happened?_
 
-| *Traces* (Module 3)
+| *Traces* (Module 4)
 | MLflow Experiments
 | _Why did it happen? What was the flow?_
 
-| *Metrics* (Module 4)
+| *Metrics* (Module 5)
 | Observe > Metrics (Prometheus)
 | _How much resource did it use? Where is the bottleneck?_
 |===
@@ -76,7 +76,7 @@ Together, the three pillars give you complete observability:
 
 * GPU utilisation is *bursty* for LLM workloads -- spikes during inference, idle between requests
 * GPU memory (VRAM) is typically the limiting factor; monitoring prevents OOM failures
-* Correlating metrics with traces (Module 3) and logs (Module 2) gives you end-to-end visibility
+* Correlating metrics with traces (Module 4) and logs (Module 3) gives you end-to-end visibility
 
 *What to monitor in production:*
 
