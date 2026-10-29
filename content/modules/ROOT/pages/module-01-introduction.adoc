@@ -63,14 +63,18 @@ In this workshop you will deploy the *{demo-app-name}* -- an AI-powered applicat
 | Overview
 
 | 2
-| Deploy the Demo App and Explore Logs
+| Deploy and Use the Demo App
 | Hands-on
 
 | 3
-| Tracing with MLflow
+| Explore Application Logs
 | Hands-on
 
 | 4
+| Tracing with MLflow
+| Hands-on
+
+| 5
 | GPU and Resource Monitoring
 | Hands-on
 |===
@@ -78,7 +82,7 @@ In this workshop you will deploy the *{demo-app-name}* -- an AI-powered applicat
 By the end, you will be able to:
 
 * Deploy an AI application with built-in observability on {productname-short}
-* Explore application logs using the {ocp-short} Console
+* Explore application logs using the {ocp-short} Console log viewer and `oc logs`
 * Analyse request traces, spans, tool calls, and LLM invocations in MLflow
 * Monitor GPU utilisation and pod resource consumption through {ocp-short} built-in monitoring
 

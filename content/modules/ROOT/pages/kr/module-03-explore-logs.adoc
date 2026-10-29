@@ -1,0 +1,103 @@
+:imagesdir: ../../assets/images
+
+[#explore-logs-kr]
+= OpenShift Console에서 애플리케이션 로그 탐색
+
+모듈 2에서 {demo-app-name}을 배포하고 트래픽을 생성했습니다. 모든 상호작용은 LLM 호출, 도구 실행, 데이터베이스 쿼리를 트리거했으며, 이 모든 것이 로그 출력을 생성했습니다. 이 모듈에서는 {ocp-short} Console을 사용하여 이러한 로그를 탐색합니다.
+
+{ocp-short}는 추가 로그 집계 스택 없이 Console에서 직접 컨테이너 출력을 검사할 수 있는 내장 로그 뷰어를 제공합니다. 모든 컨테이너의 STDOUT과 STDERR은 컨테이너 런타임에 의해 자동으로 캡처됩니다.
+
+== AgentOps에서 로그가 중요한 이유
+
+AI 애플리케이션에서 로그는 다음을 보여줍니다:
+
+* *LLM 요청/응답 주기* -- 모델이 수신한 내용과 반환한 내용
+* *도구 호출 결과* -- 도구의 성공 또는 실패 여부
+* *오류 트레이스* -- 스택 트레이스, 타임아웃, 예상치 못한 예외
+* *MLflow trace ID* -- 로그와 트레이스 간 연관 지점 (모듈 4)
+
+== 실습 1: Console에서 Pod 로그 보기
+
+=== 단계 3.1: 백엔드 Pod로 이동
+
+. *{ocp-short} Console*에서 *Workloads* > *Pods*로 이동합니다.
+. 상단의 *Project* 드롭다운이 `demo`로 설정되어 있는지 확인합니다.
+. *planner-backend* Pod를 클릭합니다.
+
+image::img-pods-list.png[demo 네임스페이스의 Pod 목록]
+
+=== 단계 3.2: 로그 스트림 보기
+
+[start=4]
+. *Logs* 탭을 클릭합니다.
+
+image::img-pod-logs-tab.png[백엔드 Pod의 Logs 탭 -- 실시간 출력]
+
+백엔드 애플리케이션의 로그 출력이 실시간으로 표시됩니다. 로그 스트림에는 FastAPI 시작 메시지, 수신 요청 로그, LLM 호출 세부 정보, MLflow 트레이스 이벤트가 포함됩니다.
+
+=== 단계 3.3: 컨테이너별 로그 필터링
+
+Pod에 여러 컨테이너(사이드카, init 컨테이너)가 있는 경우, 로그 뷰어 상단의 *Container* 드롭다운을 사용하여 특정 컨테이너를 선택합니다.
+
+`planner-backend` Pod의 경우, 애플리케이션 로그에 집중하려면 *backend* 컨테이너를 선택합니다.
+
+== 실습 2: 로그 검색 및 필터링
+
+=== 단계 3.4: 로그 내 검색
+
+로그 뷰어 상단의 *Search* 바를 사용하여 특정 키워드를 필터링합니다:
+
+* `error` 또는 `exception`을 검색하여 오류 이벤트를 찾습니다
+* `mlflow`를 검색하여 트레이스 관련 로그 항목을 찾습니다
+* `token` 또는 `inference`를 검색하여 LLM 상호작용 로그를 찾습니다
+
+image::img-pod-logs-search.png[Pod 로그 내 검색]
+
+
+[TIP]
+====
+우측 하단의 *화살표 아래* 버튼을 클릭하면 실시간으로 로그 스트림을 자동 스크롤합니다. *Pause*를 클릭하면 출력을 고정하여 검사할 수 있습니다.
+====
+
+== 실습 3: 터미널에서 로그 보기 (선택 사항)
+
+Web Terminal에서 `oc logs`를 사용하여 로그를 볼 수도 있습니다:
+
+*백엔드 실시간 로그 스트림 추적:*
+[source,sh,role="execute"]
+----
+oc logs -f deployment/planner-backend -n demo
+----
+
+*최근 50줄만 표시:*
+[source,sh,role="execute"]
+----
+oc logs deployment/planner-backend -n demo --tail=50
+----
+
+*grep으로 특정 패턴 필터링:*
+[source,sh,role="execute"]
+----
+oc logs deployment/planner-backend -n demo --tail=200 | grep -i "error\|exception\|mlflow"
+----
+
+`Ctrl+C`를 눌러 로그 스트림 추적을 중지합니다.
+
+== 모듈 요약
+
+*수행한 내용:*
+
+* {ocp-short} Console 로그 뷰어를 사용하여 컨테이너 로그를 탐색했습니다
+* 오류, LLM 상호작용, MLflow 이벤트를 필터링하고 검색했습니다
+* 터미널에서 `oc logs`를 사용하여 CLI 수준의 로그 분석을 수행했습니다
+
+*핵심 요점:*
+
+* {ocp-short}는 코드 변경 없이 모든 컨테이너 STDOUT/STDERR을 자동으로 캡처합니다
+* Console 로그 뷰어는 실시간 스트리밍, 컨테이너 선택, 키워드 검색 기능을 제공합니다
+* `oc logs`는 grep, tail을 활용한 CLI 수준의 심층 분석을 지원합니다
+* 로그는 *정확히 무슨 일이 언제 발생했는지* 알려줍니다 -- 디버깅의 기초입니다
+
+*다음 단계:*
+
+로그는 무슨 일이 일어났는지 보여주지만, 왜 일어났는지는 보여주지 않습니다. 모듈 4에서는 *MLflow 트레이싱*을 탐색합니다 -- 사용자 질문에서 에이전트 추론, 도구 호출, LLM 실행에 이르는 각 요청의 전체 실행 경로를 보여줍니다.

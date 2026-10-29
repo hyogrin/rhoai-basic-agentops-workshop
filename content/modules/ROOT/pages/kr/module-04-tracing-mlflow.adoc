@@ -1,0 +1,237 @@
+:imagesdir: ../../assets/images
+
+[#tracing-mlflow-kr]
+= MLflow를 활용한 트레이싱
+
+로그는 *무슨 일이* 일어났는지 알려주지만, 트레이스는 *왜* 일어났는지 알려줍니다. 이 모듈에서는 MLflow 트레이싱을 탐색하여 {demo-app-name} 애플리케이션에 대한 엔드투엔드 가시성을 확보합니다. 요청을 LLM 호출 및 도구 실행 전반에 걸쳐 추적하고, 실행 타임라인을 검사하며, MLflow가 각 단계의 입력, 출력, 지연 시간을 어떻게 캡처하는지 이해합니다.
+
+== 학습 목표
+
+이 모듈을 완료하면 다음을 수행할 수 있습니다:
+
+* MLflow UI에서 요청 트레이스를 찾고 분석합니다
+* 오토로깅(autologging)이 코드 변경 없이 트레이스를 캡처하는 방법을 이해합니다
+* 실행 타임라인, 도구 호출, LLM 실행을 분석합니다
+* 개별 Span의 입력, 출력, 토큰 수, 지연 시간을 검사합니다
+* 사용자 세션과 멀티턴 대화를 탐색합니다
+
+== MLflow 트레이싱이란?
+
+MLflow Tracing은 요청의 각 단계에 대한 입력, 출력, 메타데이터를 캡처하는 OpenTelemetry 호환 LLM 관측성 솔루션입니다. {demo-app-name}의 경우 다음에 대한 가시성을 제공합니다:
+
+* 각 사용자 요청의 전체 경로
+* 프롬프트와 응답이 포함된 모든 LLM 호출
+* 입력과 출력이 포함된 모든 도구 실행
+* 각 작업의 타이밍 상세 정보
+
+각 요청은 *트레이스*(전체 요청 흐름)를 생성하며, 이는 부모-자식 트리 구조로 조직된 *Span*(개별 작업)으로 구성됩니다.
+
+=== 오토로깅 동작 원리
+
+MLflow는 40개 이상의 LLM 및 AI 에이전트 프레임워크와 통합되어, *한 줄의 코드로 자동 트레이싱*을 제공합니다. {demo-app-name}은 LangChain 오토로깅을 사용합니다. 전체 트레이싱 설정은 다음과 같습니다:
+
+[source,python]
+----
+import mlflow
+import mlflow.langchain
+
+mlflow.set_tracking_uri(settings.MLFLOW_TRACKING_URI)
+mlflow.set_experiment(settings.MLFLOW_EXPERIMENT_NAME)
+mlflow.langchain.autolog()  # <1>
+----
+<1> 이 한 줄로 모든 LangChain 및 LangGraph 작업에 대한 자동 트레이싱이 활성화됩니다. 모든 LLM 호출, 도구 실행, 에이전트 결정이 애플리케이션 로직의 코드 변경 없이 Span으로 캡처됩니다.
+
+MLflow 오토로깅이 제공하는 기능:
+
+* *기본 관측성을 위한 코드 변경 불필요* -- 오토로그가 라이브러리 수준에서 프레임워크에 연결됩니다
+* *풍부한 메타데이터* -- 입력, 출력, 토큰 수, 모델 이름, 지연 시간 포함
+* *프로덕션 수준 확장성* -- 트레이스가 비동기적으로 전송되어 애플리케이션을 차단하지 않습니다
+
+[TIP]
+====
+*오토로깅이 충분하지 않을 때*
+
+`mlflow.langchain.autolog()`은 개별 LLM 호출을 자동으로 별도 트레이스 행으로 캡처합니다. 그러나 애플리케이션이 단일 논리적 단계 내에서 여러 LLM 호출을 수행하는 경우(예: plan-then-validate 패턴), 오토로깅은 이를 통합된 부모-자식 계층이 아닌 독립적인 트레이스로 기록합니다.
+
+관련 호출을 자식 Span이 있는 단일 트레이스로 그룹화하려면 `mlflow.start_span()`을 사용한 수동 계측을 추가하십시오:
+
+[source,python]
+----
+import mlflow
+
+with mlflow.start_span(name="my_workflow", span_type="CHAIN") as root:
+    root.set_inputs({"model": model_name, "task": "design_suggestion"})
+
+    with mlflow.start_span(name="step_1_planning", span_type="LLM") as span:
+        response = await llm.ainvoke(messages)
+        span.set_inputs({"messages": messages})
+        span.set_outputs({"content": response.content})
+        span.set_attribute("mlflow.chat.tokenUsage", {
+            "input_tokens": response.usage_metadata["input_tokens"],
+            "output_tokens": response.usage_metadata["output_tokens"],
+            "total_tokens": response.usage_metadata["total_tokens"],
+        })
+
+    with mlflow.start_span(name="step_2_validation", span_type="LLM") as span:
+        response = await llm.ainvoke(validation_messages)
+        # ... 동일한 패턴
+----
+
+핵심 사항:
+
+* 중첩된 `start_span()` 호출은 동일한 트레이스 내에서 자동으로 부모-자식 관계를 형성합니다.
+* 오케스트레이션 Span에는 `span_type="CHAIN"`, 모델 호출에는 `span_type="LLM"`을 사용합니다.
+* `span.set_attribute("mlflow.chat.tokenUsage", +{...}+)`를 설정하면 MLflow UI에서 토큰 사용량과 비용 대시보드가 올바르게 표시됩니다.
+* `langchain-openai`의 `ChatOpenAI`는 `response.usage_metadata`에 토큰 수를 반환합니다.
+
+자세한 내용은 MLflow 문서를 참조하십시오: https://mlflow.org/docs/latest/llms/tracing/index.html[수동 트레이싱^] | https://mlflow.org/docs/latest/llms/tracing/tracing-schema.html#extracting-token-usage[토큰 사용량^] | https://mlflow.org/docs/latest/llms/langchain/index.html[LangChain 연동^]
+====
+
+== 실습 1: MLflow Experiments 접속
+
+{productname-long} 3.5에서는 MLflow가 {ocp-short} AI Dashboard에 내장되어 있습니다. 별도 로그인이 필요하지 않습니다.
+
+. {ocp-short} AI Dashboard의 좌측 사이드바에서 *MLflow* 아래의 *Experiments*를 클릭합니다.
++
+Data Science 프로젝트의 실험 목록이 표시됩니다.
++
+[NOTE]
+====
+*Experiments* 탭이 나타나지 않는 경우, 애플리케이션은 배포했으나 아직 트래픽을 전송하지 않았을 수 있습니다. MLflow 서버는 실행 중이지만, 실험은 애플리케이션이 첫 번째 트레이스를 기록한 후에야 대시보드에 표시됩니다. 모듈 2 단계 2.7로 돌아가 최소 한 번의 분석을 실행한 후 계속하십시오.
+====
+
+image::img-experiments.png[demo 프로젝트의 inference-design-planner 실험이 표시된 Experiments 페이지]
+
+[start=2]
+. *{mlflow-experiment}* 실험을 선택합니다.
++
+이것은 모든 트레이스가 기록되는 {demo-app-name}이 구성한 실험입니다.
+
+
+== 실습 2: 트레이스 찾기 및 분석
+
+모듈 2에서 {demo-app-name}과 상호작용하며 트래픽을 생성했습니다. MLflow가 이러한 상호작용의 모든 단계를 캡처했습니다. 트레이스를 찾아보겠습니다.
+
+=== 단계 4.1: 트레이스 목록 보기
+
+. 실험 뷰에서 좌측 사이드바의 *Traces*를 클릭합니다.
++
+가장 최근 순으로 정렬된 모든 추적된 요청 목록이 표시됩니다.
+
+image::img-mlflow-traces-list.png[캡처된 요청을 보여주는 MLflow 트레이스 목록]
+
+각 행에는 다음이 표시됩니다:
+
+* *Trace ID* -- 요청의 고유 식별자
+* *Request* -- 사용자가 질문한 내용
+* *Response* -- 애플리케이션이 반환한 내용
+* *Execution time* -- 전체 엔드투엔드 지연 시간
+* *State* -- 트레이스의 성공적 완료 여부
+
+[start=2]
+. 트레이스를 클릭하여 *Overview* 뷰를 엽니다.
+
+image::img-mlflow-overview.png[캡처된 요청을 보여주는 MLflow 개요]
+
+
+=== 단계 4.2: 트레이스 요약 검사
+
+Summary 탭은 일반적인 애플리케이션 사용 중에는 보이지 않았던 내용을 보여줍니다:
+
+* *Inputs* -- 에이전트에 전달된 사용자 컨텍스트와 쿼리
+* *Span 시퀀스* -- 실행된 작업들 (LLM 호출, 도구 실행, 후속 호출)
+* *Outputs* -- 메타데이터를 포함하여 사용자에게 반환된 전체 응답
+
+image::img-mlflow-trace-summary.png[입력, Span, 출력을 보여주는 MLflow 트레이스 요약]
+
+
+=== 단계 4.3: 실행 타임라인 탐색
+
+. *Details & Timeline* 탭을 클릭합니다.
+. *Show execution timeline*을 클릭하여 전체 트레이스 분석을 확인합니다.
+
+image::img-mlflow-execution-timeline.png[Span 계층 구조와 타이밍을 보여주는 MLflow 실행 타임라인]
+
+
+트레이스 트리는 전체 실행 경로를 보여줍니다. 일반적인 요청의 경우 다음을 볼 수 있습니다:
+
+[cols="1,3",options="header"]
+|===
+| Span | 역할
+
+| *Root span*
+| 최상위 요청 핸들러
+
+| *ChatOpenAI (첫 번째)*
+| LLM 호출: 모델이 다음 행동을 결정합니다 (예: 어떤 도구를 호출할지)
+
+| *Tool invocation*
+| 도구 실행: 데이터 쿼리, 계산 수행, 외부 서비스 호출
+
+| *ChatOpenAI (두 번째)*
+| LLM 호출: 도구 결과로부터 자연어 응답을 생성합니다
+|===
+
+실행 타임라인은 각 Span의 타이밍 바를 표시하여 병목 지점을 쉽게 식별할 수 있게 합니다. 다음을 확인하십시오:
+
+* 어떤 Span이 가장 많은 시간을 소비했는지
+* 도구 호출이 병렬로 실행되었는지 순차적으로 실행되었는지
+* LLM 추론과 도구 실행에 각각 얼마나 시간이 소요되었는지
+
+
+== 실습 3: 사용자 세션 탐색
+
+MLflow는 트레이스를 사용자와 연관시키고 세션으로 그룹화하는 기능을 기본 제공합니다. 이는 멀티턴 대화와 사용자 행동 패턴을 이해하는 데 유용합니다.
+
+. MLflow에서 *Observability* 아래 좌측 사이드바의 *Sessions*를 클릭합니다.
+
+image::img-mlflow-sessions.png[Observability 아래 좌측 사이드바의 MLflow Sessions]
+
+
+== 트레이스와 로그의 상호 보완
+
+트레이스와 로그는 서로 다르지만 상호 보완적인 역할을 합니다:
+
+[cols="1,2,2",options="header"]
+|===
+| 관점 | 로그 (모듈 3) | 트레이스 (모듈 4)
+
+| *초점*
+| 개별 이벤트
+| 컴포넌트 간 요청 흐름
+
+| *구조*
+| 평면적, 타임스탬프 기반 항목
+| 계층적 부모-자식 트리
+
+| *최적 용도*
+| 특정 실패 디버깅, 이벤트 감사
+| 실행 경로 이해, 병목 지점 파악
+
+| *답변*
+| _정확히 무슨 일이 발생했는가?_
+| _왜 발생했는가? 흐름은 어떠했는가?_
+|===
+
+로그와 트레이스를 함께 사용하면 완전한 가시성을 확보할 수 있습니다: 로그로 상세 이벤트를, 트레이스로 요청 흐름을 파악합니다. 모듈 5에서는 세 번째 축인 *메트릭*을 추가하여 GPU 활용률과 리소스 소비를 모니터링합니다.
+
+== 모듈 요약
+
+*수행한 내용:*
+
+* MLflow Tracking Server에 접속하여 실험 트레이스를 찾았습니다
+* 입력, Span 시퀀스, 출력을 보여주는 트레이스 요약을 분석했습니다
+* 실행 타임라인을 탐색하여 병목 지점을 파악하고 요청 흐름을 이해했습니다
+* 개별 Span을 검사하여 도구 호출 입출력과 LLM 프롬프트/완료를 확인했습니다
+* 사용자 세션을 탐색하여 멀티턴 대화 흐름을 확인했습니다
+
+*핵심 요점:*
+
+* MLflow 오토로그는 *코드 변경 없이* 엔드투엔드 트레이싱을 제공합니다 -- 한 줄로 활성화됩니다
+* 트레이스는 계층적 Span 관계로 실행 타임라인을 캡처하여 무엇이 무엇을 호출했고 각 단계에 얼마나 걸렸는지 보여줍니다
+* 개별 Span 검사를 통해 특정 컴포넌트(도구 로직, LLM 프롬프트, 데이터 조회)까지 문제를 특정할 수 있습니다
+* 세션은 멀티턴 대화를 그룹화하여 대화 수준의 행동 분석을 지원합니다
+
+*다음 단계:*
+
+모듈 5에서는 {ocp-short} Console 내장 관측성 도구를 사용한 *GPU 및 리소스 모니터링*을 소개하며, AgentOps 관측성의 세 가지 축을 완성합니다.

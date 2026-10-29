@@ -51,7 +51,7 @@ Together, the three pillars give you complete observability:
 |===
 | Pillar | Tool | Answers
 
-| *Logs* (Module 2)
+| *Logs* (Module 3)
 | {ocp-short} Console pod logs
 | _What exactly happened?_
 

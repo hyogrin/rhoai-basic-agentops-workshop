@@ -14,13 +14,16 @@ Congratulations -- you have completed the *Basic AgentOps on Red Hat AI* worksho
 | 1 -- Introduction
 | Learned what AgentOps is, why traditional monitoring falls short for AI agents, and how the three pillars of observability (logs, traces, metrics) address these challenges
 
-| 2 -- Deploy App and Explore Logs
-| Deployed the {demo-app-name} with MLflow tracing using `deploy_demo_app.sh`, then explored container logs via the {ocp-short} Console log viewer and `oc logs`
+| 2 -- Deploy and Use the Demo App
+| Deployed the {demo-app-name} with MLflow tracing using `deploy_demo_app.sh`, then used the application to generate sample traffic for observability analysis
 
-| 3 -- Tracing with MLflow
+| 3 -- Explore Application Logs
+| Explored container logs via the {ocp-short} Console log viewer and `oc logs`, filtered and searched for errors, LLM interactions, and MLflow events
+
+| 4 -- Tracing with MLflow
 | Navigated the MLflow Tracking Server to find request traces, analysed execution timelines and span hierarchies, inspected tool call inputs/outputs and LLM prompts/completions
 
-| 4 -- GPU and Resource Monitoring
+| 5 -- GPU and Resource Monitoring
 | Queried GPU utilisation, memory, and temperature via NVIDIA DCGM metrics, monitored pod CPU and memory usage, and correlated GPU activity with application inference patterns
 |===
 

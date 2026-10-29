@@ -4,3 +4,11 @@
 * xref:module-04-tracing-mlflow.adoc#tracing-mlflow[Module 4: Tracing with MLflow]
 * xref:module-05-gpu-resources.adoc#gpu-resources[Module 5: GPU and Resource Monitoring]
 * xref:module-06-closing.adoc#closing[Closing and Resources]
+
+.한국어 (Korean)
+* xref:kr/module-01-introduction.adoc#introduction-kr[1: 소개 -- AgentOps란]
+* xref:kr/module-02-deploy-and-logs.adoc#deploy-and-use-kr[2: 데모 앱 배포 및 사용]
+* xref:kr/module-03-explore-logs.adoc#explore-logs-kr[3: 애플리케이션 로그 탐색]
+* xref:kr/module-04-tracing-mlflow.adoc#tracing-mlflow-kr[4: MLflow를 활용한 트레이싱]
+* xref:kr/module-05-gpu-resources.adoc#gpu-resources-kr[5: GPU 및 리소스 모니터링]
+* xref:kr/module-06-closing.adoc#closing-kr[마무리 및 참고 자료]
