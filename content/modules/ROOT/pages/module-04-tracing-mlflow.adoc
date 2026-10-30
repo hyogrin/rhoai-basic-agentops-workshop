@@ -1,4 +1,4 @@
-:imagesdir: ../assets/images
+:imagesdir: ../mlflow
 
 [#tracing-mlflow]
 = Tracing with MLflow

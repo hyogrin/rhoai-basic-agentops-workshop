@@ -1,4 +1,4 @@
-:imagesdir: ../../assets/images
+:imagesdir: ../../mlflow
 
 [#tracing-mlflow-kr]
 = MLflow를 활용한 트레이싱
