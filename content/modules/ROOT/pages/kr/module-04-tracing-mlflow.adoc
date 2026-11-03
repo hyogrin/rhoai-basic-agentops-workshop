@@ -1,4 +1,4 @@
-:imagesdir: ../../mlflow
+:imagesdir: ../../assets/images
 
 [#tracing-mlflow-kr]
 = MLflow를 활용한 트레이싱
@@ -100,7 +100,7 @@ Data Science 프로젝트의 실험 목록이 표시됩니다.
 *Experiments* 탭이 나타나지 않는 경우, 애플리케이션은 배포했으나 아직 트래픽을 전송하지 않았을 수 있습니다. MLflow 서버는 실행 중이지만, 실험은 애플리케이션이 첫 번째 트레이스를 기록한 후에야 대시보드에 표시됩니다. 모듈 2 단계 2.7로 돌아가 최소 한 번의 분석을 실행한 후 계속하십시오.
 ====
 
-image::img-experiments.png[demo 프로젝트의 inference-design-planner 실험이 표시된 Experiments 페이지]
+image::mlflow/img-experiments.png[demo 프로젝트의 inference-design-planner 실험이 표시된 Experiments 페이지]
 
 [start=2]
 . *{mlflow-experiment}* 실험을 선택합니다.
@@ -118,7 +118,7 @@ image::img-experiments.png[demo 프로젝트의 inference-design-planner 실험�
 +
 가장 최근 순으로 정렬된 모든 추적된 요청 목록이 표시됩니다.
 
-image::img-mlflow-traces-list.png[캡처된 요청을 보여주는 MLflow 트레이스 목록]
+image::mlflow/img-mlflow-traces-list.png[캡처된 요청을 보여주는 MLflow 트레이스 목록]
 
 각 행에는 다음이 표시됩니다:
 
@@ -131,7 +131,7 @@ image::img-mlflow-traces-list.png[캡처된 요청을 보여주는 MLflow 트레
 [start=2]
 . 트레이스를 클릭하여 *Overview* 뷰를 엽니다.
 
-image::img-mlflow-overview.png[캡처된 요청을 보여주는 MLflow 개요]
+image::mlflow/img-mlflow-overview.png[캡처된 요청을 보여주는 MLflow 개요]
 
 
 === 단계 4.2: 트레이스 요약 검사
@@ -142,7 +142,7 @@ Summary 탭은 일반적인 애플리케이션 사용 중에는 보이지 않았
 * *Span 시퀀스* -- 실행된 작업들 (LLM 호출, 도구 실행, 후속 호출)
 * *Outputs* -- 메타데이터를 포함하여 사용자에게 반환된 전체 응답
 
-image::img-mlflow-trace-summary.png[입력, Span, 출력을 보여주는 MLflow 트레이스 요약]
+image::mlflow/img-mlflow-trace-summary.png[입력, Span, 출력을 보여주는 MLflow 트레이스 요약]
 
 
 === 단계 4.3: 실행 타임라인 탐색
@@ -150,7 +150,7 @@ image::img-mlflow-trace-summary.png[입력, Span, 출력을 보여주는 MLflow 
 . *Details & Timeline* 탭을 클릭합니다.
 . *Show execution timeline*을 클릭하여 전체 트레이스 분석을 확인합니다.
 
-image::img-mlflow-execution-timeline.png[Span 계층 구조와 타이밍을 보여주는 MLflow 실행 타임라인]
+image::mlflow/img-mlflow-execution-timeline.png[Span 계층 구조와 타이밍을 보여주는 MLflow 실행 타임라인]
 
 
 트레이스 트리는 전체 실행 경로를 보여줍니다. 일반적인 요청의 경우 다음을 볼 수 있습니다:
@@ -185,7 +185,7 @@ MLflow는 트레이스를 사용자와 연관시키고 세션으로 그룹화하
 
 . MLflow에서 *Observability* 아래 좌측 사이드바의 *Sessions*를 클릭합니다.
 
-image::img-mlflow-sessions.png[Observability 아래 좌측 사이드바의 MLflow Sessions]
+image::mlflow/img-mlflow-sessions.png[Observability 아래 좌측 사이드바의 MLflow Sessions]
 
 
 == 트레이스와 로그의 상호 보완

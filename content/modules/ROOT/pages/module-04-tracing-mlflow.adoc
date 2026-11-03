@@ -1,4 +1,4 @@
-:imagesdir: ../mlflow
+:imagesdir: ../assets/images
 
 [#tracing-mlflow]
 = Tracing with MLflow
@@ -100,7 +100,7 @@ You will see the list of experiments for your data science project.
 If the *Experiments* tab does not appear, you may have deployed the application but not yet sent any traffic. The MLflow server is running, but experiments only become visible in the dashboard after the application records its first trace. Go back to Module 2 Step 2.7 and run at least one analysis before continuing.
 ====
 
-image::img-experiments.png[Experiments page showing the inference-design-planner experiment in the demo project]
+image::mlflow/img-experiments.png[Experiments page showing the inference-design-planner experiment in the demo project]
 
 [start=2]
 . Select the *{mlflow-experiment}* experiment.
@@ -118,7 +118,7 @@ In Module 2 you interacted with the {demo-app-name} and generated traffic. MLflo
 +
 You will see a list of all traced requests, sorted by most recent.
 
-image::img-mlflow-traces-list.png[MLflow traces list showing captured requests]
+image::mlflow/img-mlflow-traces-list.png[MLflow traces list showing captured requests]
 
 Each row shows:
 
@@ -131,7 +131,7 @@ Each row shows:
 [start=2]
 . Click on a trace to open its *Overview* view.
 
-image::img-mlflow-overview.png[MLflow overview showing captured requests]
+image::mlflow/img-mlflow-overview.png[MLflow overview showing captured requests]
 
 
 === Step 4.2: Examine the Trace Summary
@@ -142,7 +142,7 @@ The Summary tab reveals what was invisible during normal application use:
 * *Span sequence* -- The operations that executed (LLM calls, tool invocations, follow-up calls)
 * *Outputs* -- The complete response returned to the user, including metadata
 
-image::img-mlflow-trace-summary.png[MLflow trace summary showing inputs, spans, and outputs]
+image::mlflow/img-mlflow-trace-summary.png[MLflow trace summary showing inputs, spans, and outputs]
 
 
 === Step 4.3: Explore the Execution Timeline
@@ -150,7 +150,7 @@ image::img-mlflow-trace-summary.png[MLflow trace summary showing inputs, spans, 
 . Click the *Details & Timeline* tab.
 . Click *Show execution timeline* to see the full trace breakdown.
 
-image::img-mlflow-execution-timeline.png[MLflow execution timeline showing span hierarchy and timing]
+image::mlflow/img-mlflow-execution-timeline.png[MLflow execution timeline showing span hierarchy and timing]
 
 
 The trace tree shows the complete execution path. For a typical request you might see:
@@ -185,7 +185,7 @@ MLflow provides built-in support for associating traces with users and grouping 
 
 . In MLflow, click *Sessions* in the left sidebar under *Observability*.
 
-image::img-mlflow-sessions.png[MLflow Sessions in the left sidebar under Observability]
+image::mlflow/img-mlflow-sessions.png[MLflow Sessions in the left sidebar under Observability]
 
 
 == Traces and Logs Are Complementary
