@@ -1,34 +1,43 @@
 #!/bin/bash
 ###############################################################################
-# deploy_demo_apps.sh
+# deploy_demo_app.sh
 #
-# Deploy Inference Design Planner into the demo namespace
+# Deploy Inference Design Planner into the participant's own namespace
 # with MLflow tracing pre-configured.
 #
-# Reuses the existing PostgreSQL in redhat-ods-applications (deployed by
-# sno-setup-maas-35.sh). No additional database is installed.
+# Multi-user workshop design:
+#   - Namespace defaults to the logged-in OpenShift username (user1..userN)
+#   - Routes use OpenShift auto-generated hosts (<route>-<ns>.<apps domain>),
+#     so every participant gets unique URLs without cluster-level permissions
+#   - Each participant gets a dedicated database (inference_planner_<ns>)
+#     on the shared PostgreSQL in redhat-ods-applications
 #
 # Prerequisites:
-#   - oc login completed with cluster-admin privileges
-#   - sno-enable-all-features-35.sh already run (MLflow server + ConfigMaps)
+#   - oc login completed as the workshop user (e.g. user7)
+#   - The user's namespace already exists and the user has admin on it
+#   - sno-enable-all-features-35.sh already run (MLflow server; the per-user
+#     mlflow-client-env ConfigMap is created by this script if missing)
 #   - sno-setup-maas-35.sh already run (PostgreSQL in redhat-ods-applications)
 #   - Container images already pushed to registry
 #
 # Usage:
-#   bash deploy_demo_apps.sh <LLM_BASE_URL> <LLM_API_KEY> <LLM_MODEL>
+#   bash deploy_demo_app.sh <LLM_BASE_URL> <LLM_API_KEY> <LLM_MODEL>
 #
 # Example:
-#   bash deploy_demo_apps.sh \
+#   bash deploy_demo_app.sh \
 #     https://qwen3-direct.apps.cluster.example.com/v1 \
 #     not-needed \
 #     qwen3-235b-a22b
 #
 # Options:
-#   --namespace=<NS>    Target namespace (default: demo)
+#   --namespace=<NS>    Target namespace (default: derived from `oc whoami`)
 #
 # Environment overrides:
 #   PLANNER_BACKEND_IMAGE   (default: quay.io/rh-ee-hyochoi/inference-planner-backend:latest)
 #   PLANNER_FRONTEND_IMAGE  (default: quay.io/rh-ee-hyochoi/inference-planner-frontend:latest)
+#   MLFLOW_TRACKING_URI     (default: https://mlflow.redhat-ods-applications.svc:8443/mlflow)
+#   MLFLOW_TRACKING_INSECURE_TLS (default: true)
+#   MLFLOW_VERIFY_SSL       (default: false)
 ###############################################################################
 set -euo pipefail
 
@@ -41,10 +50,14 @@ error()   { echo -e "${RED}[ERR]${NC}  $*"; }
 ###############################################################################
 # Defaults
 ###############################################################################
-NS="demo"
+NS=""
 PG_NS="redhat-ods-applications"
 PLANNER_BACKEND_IMAGE="${PLANNER_BACKEND_IMAGE:-quay.io/rh-ee-hyochoi/inference-planner-backend:latest}"
 PLANNER_FRONTEND_IMAGE="${PLANNER_FRONTEND_IMAGE:-quay.io/rh-ee-hyochoi/inference-planner-frontend:latest}"
+MLFLOW_TRACKING_URI="${MLFLOW_TRACKING_URI:-https://mlflow.redhat-ods-applications.svc:8443/mlflow}"
+MLFLOW_TRACKING_INSECURE_TLS="${MLFLOW_TRACKING_INSECURE_TLS:-true}"
+MLFLOW_VERIFY_SSL="${MLFLOW_VERIFY_SSL:-false}"
+USAGE="Usage: $0 <LLM_BASE_URL> <LLM_API_KEY> <LLM_MODEL> [--namespace=<NS>]"
 
 ###############################################################################
 # Parse arguments
@@ -53,16 +66,14 @@ POSITIONAL=()
 for arg in "$@"; do
     case "$arg" in
         --namespace=*) NS="${arg#*=}" ;;
-        -h|--help)
-            echo "Usage: $0 <LLM_BASE_URL> <LLM_API_KEY> <LLM_MODEL> [--namespace=<NS>]"
-            exit 0 ;;
+        -h|--help) echo "$USAGE"; exit 0 ;;
         --*) error "Unknown option: $arg"; exit 1 ;;
         *)   POSITIONAL+=("$arg") ;;
     esac
 done
 
 if [ ${#POSITIONAL[@]} -ne 3 ]; then
-    echo "Usage: $0 <LLM_BASE_URL> <LLM_API_KEY> <LLM_MODEL>"
+    echo "$USAGE"
     exit 1
 fi
 
@@ -73,52 +84,161 @@ LLM_MODEL="${POSITIONAL[2]}"
 # Normalize LLM_BASE_URL: remove trailing slash to avoid double-slash in API paths
 LLM_BASE_URL="${LLM_BASE_URL%/}"
 
+###############################################################################
+# Resolve user + namespace
+###############################################################################
+OC_USER=$(oc whoami 2>/dev/null) || { error "oc login required"; exit 1; }
+
+NS_SOURCE="--namespace flag"
+if [ -z "$NS" ]; then
+    NS_SOURCE="derived from oc whoami"
+    case "$OC_USER" in
+        kube:admin|system:*)
+            error "Logged in as '$OC_USER' — cannot derive a workshop namespace."
+            error "Log in as your workshop user (e.g. user1) or pass --namespace=<NS>."
+            exit 1 ;;
+    esac
+    # Sanitize to a valid namespace name (lowercase, alphanumerics and '-')
+    NS=$(echo "$OC_USER" | tr '[:upper:]' '[:lower:]' | sed -e 's/[^a-z0-9-]/-/g' -e 's/^-*//' -e 's/-*$//')
+fi
+
 echo "=============================================="
 echo " Deploy Inference Design Planner"
 echo "   with MLflow Tracing"
 echo "=============================================="
-info "Namespace : $NS"
+info "User      : $OC_USER"
+info "Namespace : $NS ($NS_SOURCE)"
 info "LLM URL   : $LLM_BASE_URL"
 info "LLM Model : $LLM_MODEL"
 echo ""
 
-# Prerequisites
-oc whoami &>/dev/null || { error "oc login required"; exit 1; }
-
-CLUSTER_DOMAIN=$(oc get ingresses.config/cluster -o jsonpath='{.spec.domain}' 2>/dev/null)
-[ -z "$CLUSTER_DOMAIN" ] && { error "Cannot detect cluster domain"; exit 1; }
-info "Cluster   : $CLUSTER_DOMAIN"
-
-# Ensure namespace exists
-if ! oc get ns "$NS" &>/dev/null 2>&1; then
-    info "Creating namespace $NS..."
-    oc new-project "$NS" --skip-config-write 2>/dev/null || oc create namespace "$NS"
+# Namespace must already exist (pre-created by workshop admin)
+if ! oc get project "$NS" &>/dev/null; then
+    error "Namespace '$NS' not found or not accessible by '$OC_USER'."
+    error "Ask the workshop admin to create it, or pass --namespace=<NS>."
+    exit 1
 fi
 
-# Label namespace for NetworkPolicy (allows cross-namespace access to PostgreSQL, MLflow, etc.)
-oc label namespace "$NS" opendatahub.io/dashboard=true --overwrite 2>/dev/null || true
-oc label namespace "$NS" opendatahub.io/generated-namespace=true --overwrite 2>/dev/null || true
+# NetworkPolicy labels (allow cross-namespace access to PostgreSQL, MLflow, etc.)
+# Namespace admins usually cannot label namespaces, so this is best-effort;
+# the workshop admin should pre-label user namespaces.
+oc label namespace "$NS" opendatahub.io/dashboard=true --overwrite &>/dev/null || true
+oc label namespace "$NS" opendatahub.io/generated-namespace=true --overwrite &>/dev/null || true
+NS_LABELS=$(oc get project "$NS" -o jsonpath='{.metadata.labels}' 2>/dev/null || true)
+if ! echo "$NS_LABELS" | grep -q 'opendatahub.io/dashboard'; then
+    warn "Namespace '$NS' is missing label opendatahub.io/dashboard=true"
+    warn "Cross-namespace access to PostgreSQL/MLflow may be blocked by NetworkPolicy"
+fi
 
-# Verify MLflow client ConfigMaps exist (created by sno-enable-all-features Step 3b)
+# MLflow client ConfigMap: points the backend at the shared MLflow server.
+# Contents are identical for every user (isolation comes from MLFLOW_WORKSPACE,
+# the per-namespace SA token and RoleBinding), so create it if missing.
+# An existing ConfigMap (e.g. customised by an admin) is left untouched.
 MLFLOW_AVAILABLE=false
-if oc get configmap mlflow-client-env -n "$NS" &>/dev/null 2>&1; then
+if oc get configmap mlflow-client-env -n "$NS" &>/dev/null; then
     success "MLflow client ConfigMap found ✓"
     MLFLOW_AVAILABLE=true
 else
-    warn "ConfigMap mlflow-client-env not found in $NS"
-    warn "Run sno-enable-all-features-35.sh first, or MLflow tracing will be disabled"
+    info "Creating MLflow client ConfigMap in $NS..."
+    if oc apply -n "$NS" -f - >/dev/null <<EOF
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mlflow-client-env
+  namespace: ${NS}
+data:
+  MLFLOW_TRACKING_URI: "${MLFLOW_TRACKING_URI}"
+  MLFLOW_TRACKING_INSECURE_TLS: "${MLFLOW_TRACKING_INSECURE_TLS}"
+  VERIFY_SSL: "${MLFLOW_VERIFY_SSL}"
+EOF
+    then
+        success "MLflow client ConfigMap created ✓"
+        MLFLOW_AVAILABLE=true
+    else
+        warn "Could not create ConfigMap mlflow-client-env in $NS — MLflow tracing will be disabled"
+    fi
 fi
 echo ""
 
 ###############################################################################
-# Step 1: Reuse existing PostgreSQL
-#   The POC PostgreSQL lives in redhat-ods-applications (deployed by
-#   sno-setup-maas-35.sh). We create an 'inference_planner' database
-#   on it and build a cross-namespace FQDN connection URL.
+# Step 1: Routes
+#   Created first without spec.host so OpenShift assigns a unique host per
+#   namespace (<route>-<ns>.<apps domain>). The resolved hosts are needed
+#   for CORS and the frontend's API URL. No cluster-level read access needed.
 ###############################################################################
-info "=== Step 1/4: PostgreSQL (reuse existing) ==="
+info "=== Step 1/6: Routes ==="
 
-if ! oc get deployment postgres -n "$PG_NS" &>/dev/null 2>&1; then
+oc apply -n "$NS" -f - <<EOF
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: inference-planner-api
+  namespace: ${NS}
+  labels:
+    app: planner-backend
+spec:
+  to:
+    kind: Service
+    name: planner-backend
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: inference-planner
+  namespace: ${NS}
+  labels:
+    app: planner-frontend
+spec:
+  to:
+    kind: Service
+    name: planner-frontend
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+EOF
+
+get_route_host() {
+    local name="$1" host="" wait=0
+    while [ $wait -lt 30 ]; do
+        host=$(oc get route "$name" -n "$NS" -o jsonpath='{.spec.host}' 2>/dev/null || true)
+        [ -n "$host" ] && { echo "$host"; return 0; }
+        sleep 2; wait=$((wait + 2))
+    done
+    return 1
+}
+
+API_HOST=$(get_route_host inference-planner-api) || { error "Route inference-planner-api has no host"; exit 1; }
+FE_HOST=$(get_route_host inference-planner)      || { error "Route inference-planner has no host"; exit 1; }
+PLANNER_API="https://${API_HOST}"
+PLANNER_URL="https://${FE_HOST}"
+success "Frontend route: $PLANNER_URL"
+success "Backend route : $PLANNER_API"
+echo ""
+
+###############################################################################
+# Step 2: Per-user database on existing PostgreSQL
+#   The POC PostgreSQL lives in redhat-ods-applications (deployed by
+#   sno-setup-maas-35.sh). Each participant gets their own database so
+#   migrations and data don't collide.
+###############################################################################
+info "=== Step 2/6: PostgreSQL (dedicated database on shared server) ==="
+
+# Fail early with a clear message if the user can't reach the shared PostgreSQL
+if ! oc auth can-i get deployments -n "$PG_NS" &>/dev/null || \
+   ! oc auth can-i create pods/exec -n "$PG_NS" &>/dev/null; then
+    error "User '$OC_USER' lacks access to $PG_NS (needs get deployments + pods/exec)."
+    error "Ask the workshop admin to grant access, or pre-provision the database."
+    exit 1
+fi
+
+if ! oc get deployment postgres -n "$PG_NS" &>/dev/null; then
     error "PostgreSQL not found in $PG_NS"
     error "Run sno-setup-maas-35.sh first to deploy PostgreSQL"
     exit 1
@@ -149,24 +269,37 @@ PG_PASSWORD=$(oc get deployment postgres -n "$PG_NS" \
 [ -z "$PG_USER" ] && { error "Cannot read PostgreSQL user from deployment"; exit 1; }
 [ -z "$PG_PASSWORD" ] && { error "Cannot read PostgreSQL password from deployment"; exit 1; }
 
-# Create inference_planner database (idempotent)
-PLANNER_DB="inference_planner"
+# Per-user database name (e.g. user7 -> inference_planner_user7)
+PLANNER_DB="inference_planner_${NS//-/_}"
 PG_POD=$(oc get pods -n "$PG_NS" -l app=postgres -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
-info "Creating database '$PLANNER_DB' on existing PostgreSQL..."
-oc exec "$PG_POD" -n "$PG_NS" -- \
-    psql -U "$PG_USER" -d "$PG_USER" \
-    -c "SELECT 1 FROM pg_database WHERE datname='${PLANNER_DB}'" 2>/dev/null \
-    | grep -q "1" && {
-    success "Database '$PLANNER_DB' already exists ✓"
-} || {
+
+db_exists() {
     oc exec "$PG_POD" -n "$PG_NS" -- \
-        psql -U "$PG_USER" -d "$PG_USER" \
-        -c "CREATE DATABASE ${PLANNER_DB} OWNER ${PG_USER}" 2>/dev/null && \
-        success "Database '$PLANNER_DB' created" || \
-        warn "Could not create database — will use '${PG_USER}' database instead"
+        psql -U "$PG_USER" -d "$PG_USER" -tAc \
+        "SELECT 1 FROM pg_database WHERE datname='${PLANNER_DB}'" 2>/dev/null || true
 }
 
-# Build cross-namespace DB URL (FQDN required for demo → redhat-ods-applications)
+info "Ensuring database '$PLANNER_DB' exists..."
+if [ "$(db_exists)" = "1" ]; then
+    success "Database '$PLANNER_DB' already exists ✓"
+else
+    # The app role (e.g. 'maas') usually lacks CREATEDB, so create the database
+    # as the 'postgres' superuser over the pod's local socket, owned by the app role.
+    CREATE_ERR=$(oc exec "$PG_POD" -n "$PG_NS" -- \
+        psql -U postgres -d postgres \
+        -c "CREATE DATABASE \"${PLANNER_DB}\" OWNER \"${PG_USER}\"" 2>&1 >/dev/null) || true
+    # Re-check (another run may have created it concurrently)
+    if [ "$(db_exists)" = "1" ]; then
+        success "Database '$PLANNER_DB' created ✓"
+    else
+        error "Could not create database '$PLANNER_DB'"
+        [ -n "$CREATE_ERR" ] && error "PostgreSQL said: $CREATE_ERR"
+        exit 1
+    fi
+fi
+TARGET_DB="$PLANNER_DB"
+
+# Build cross-namespace DB URL (FQDN required for <user ns> → redhat-ods-applications)
 # URL-encode password (pure bash)
 ENCODED_PW=""
 for (( i=0; i<${#PG_PASSWORD}; i++ )); do
@@ -178,17 +311,6 @@ for (( i=0; i<${#PG_PASSWORD}; i++ )); do
 done
 PG_FQDN="postgres.${PG_NS}.svc.cluster.local"
 
-# Check which database to use
-DB_EXISTS=$(oc exec "$PG_POD" -n "$PG_NS" -- \
-    psql -U "$PG_USER" -d "$PG_USER" -tAc \
-    "SELECT 1 FROM pg_database WHERE datname='${PLANNER_DB}'" 2>/dev/null || true)
-if [ "$DB_EXISTS" = "1" ]; then
-    TARGET_DB="$PLANNER_DB"
-else
-    TARGET_DB="$PG_USER"
-    warn "Using '${PG_USER}' database (shared with MaaS/MLflow)"
-fi
-
 DB_URL_ASYNC="postgresql+asyncpg://${PG_USER}:${ENCODED_PW}@${PG_FQDN}:5432/${TARGET_DB}"
 DB_URL_SYNC="postgresql://${PG_USER}:${ENCODED_PW}@${PG_FQDN}:5432/${TARGET_DB}"
 
@@ -196,9 +318,9 @@ info "DB: ${PG_USER}@${PG_FQDN}:5432/${TARGET_DB}"
 echo ""
 
 ###############################################################################
-# Step 2: ConfigMap + Secret
+# Step 3: ConfigMap + Secret + MLflow auth
 ###############################################################################
-info "=== Step 2/4: Configuration ==="
+info "=== Step 3/6: Configuration ==="
 
 oc apply -n "$NS" -f - <<EOF
 apiVersion: v1
@@ -209,7 +331,7 @@ metadata:
 data:
   APP_ENV: "production"
   APP_LOG_LEVEL: "INFO"
-  APP_CORS_ORIGINS: "https://inference-planner.${CLUSTER_DOMAIN}"
+  APP_CORS_ORIGINS: "${PLANNER_URL}"
   LLM_MODEL_NAME: "${LLM_MODEL}"
   MLFLOW_EXPERIMENT_NAME: "inference-design-planner"
   MLFLOW_WORKSPACE: "${NS}"
@@ -229,12 +351,40 @@ stringData:
   DATABASE_URL_SYNC: "${DB_URL_SYNC}"
 EOF
 success "Config + secrets created"
+
+# MLflow RBAC + SA token must exist BEFORE the backend Deployment references them
+if [ "$MLFLOW_AVAILABLE" = true ]; then
+    if oc create rolebinding planner-mlflow-integration \
+        --clusterrole=mlflow-operator-mlflow-integration \
+        --serviceaccount="${NS}:default" \
+        -n "$NS" --dry-run=client -o yaml 2>/dev/null | oc apply -f - &>/dev/null; then
+        success "MLflow RBAC configured"
+    else
+        warn "Could not create rolebinding planner-mlflow-integration (insufficient permissions?)"
+        warn "MLflow tracing may fail until the workshop admin creates it"
+    fi
+
+    # Non-expiring SA token secret for MLflow authentication
+    if ! oc get secret mlflow-sa-token -n "$NS" &>/dev/null; then
+        oc apply -n "$NS" -f - <<EOF
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mlflow-sa-token
+  namespace: ${NS}
+  annotations:
+    kubernetes.io/service-account.name: default
+type: kubernetes.io/service-account-token
+EOF
+        success "MLflow SA token secret created"
+    fi
+fi
 echo ""
 
 ###############################################################################
-# Step 3: DB Migration
+# Step 4: DB Migration
 ###############################################################################
-info "=== Step 3/5: DB Migration ==="
+info "=== Step 4/6: DB Migration ==="
 
 oc delete job planner-db-migrate -n "$NS" 2>/dev/null || true
 oc apply -n "$NS" -f - <<EOF
@@ -266,6 +416,7 @@ spec:
               memory: 512Mi
 EOF
 
+JOB_STATUS=""
 WAIT=0
 while [ $WAIT -lt 120 ]; do
     JOB_STATUS=$(oc get job planner-db-migrate -n "$NS" \
@@ -280,9 +431,26 @@ done
 echo ""
 
 ###############################################################################
-# Step 4: Backend + Frontend
+# Step 5: Backend + Frontend
 ###############################################################################
-info "=== Step 4/5: Backend + Frontend ==="
+info "=== Step 5/6: Backend + Frontend ==="
+
+# Only wire MLflow env into the backend when its ConfigMap/Secret exist;
+# otherwise the pod would be stuck in CreateContainerConfigError.
+MLFLOW_ENVFROM=""
+MLFLOW_ENV=""
+if [ "$MLFLOW_AVAILABLE" = true ]; then
+    MLFLOW_ENVFROM="
+            - configMapRef:
+                name: mlflow-client-env"
+    MLFLOW_ENV="
+          env:
+            - name: MLFLOW_TRACKING_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: mlflow-sa-token
+                  key: token"
+fi
 
 oc apply -n "$NS" -f - <<EOF
 apiVersion: apps/v1
@@ -312,15 +480,7 @@ spec:
             - configMapRef:
                 name: planner-config
             - secretRef:
-                name: planner-secrets
-            - configMapRef:
-                name: mlflow-client-env
-          env:
-            - name: MLFLOW_TRACKING_TOKEN
-              valueFrom:
-                secretKeyRef:
-                  name: mlflow-sa-token
-                  key: token
+                name: planner-secrets${MLFLOW_ENVFROM}${MLFLOW_ENV}
           resources:
             requests:
               cpu: 250m
@@ -359,24 +519,6 @@ spec:
       targetPort: 8000
   type: ClusterIP
 ---
-apiVersion: route.openshift.io/v1
-kind: Route
-metadata:
-  name: inference-planner-api
-  namespace: ${NS}
-  labels:
-    app: planner-backend
-spec:
-  host: inference-planner-api.${CLUSTER_DOMAIN}
-  to:
-    kind: Service
-    name: planner-backend
-  port:
-    targetPort: http
-  tls:
-    termination: edge
-    insecureEdgeTerminationPolicy: Redirect
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -402,9 +544,9 @@ spec:
               name: http
           env:
             - name: NEXT_PUBLIC_API_URL
-              value: "https://inference-planner-api.${CLUSTER_DOMAIN}"
+              value: "${PLANNER_API}"
             - name: NEXT_PUBLIC_AGENT_URL
-              value: "https://inference-planner-api.${CLUSTER_DOMAIN}/agent"
+              value: "${PLANNER_API}/agent"
           resources:
             requests:
               cpu: 100m
@@ -440,68 +582,22 @@ spec:
       port: 3000
       targetPort: 3000
   type: ClusterIP
----
-apiVersion: route.openshift.io/v1
-kind: Route
-metadata:
-  name: inference-planner
-  namespace: ${NS}
-  labels:
-    app: planner-frontend
-spec:
-  host: inference-planner.${CLUSTER_DOMAIN}
-  to:
-    kind: Service
-    name: planner-frontend
-  port:
-    targetPort: http
-  tls:
-    termination: edge
-    insecureEdgeTerminationPolicy: Redirect
 EOF
 
 success "Backend + Frontend applied"
 echo ""
 
 ###############################################################################
-# Step 5: MLflow RBAC + Verify
+# Step 6: Verify
 ###############################################################################
-info "=== Step 5/5: RBAC + Verify ==="
+info "=== Step 6/6: Verify ==="
 
-# MLflow RBAC
-if [ "$MLFLOW_AVAILABLE" = true ]; then
-    oc create rolebinding planner-mlflow-integration \
-        --clusterrole=mlflow-operator-mlflow-integration \
-        --serviceaccount="${NS}:default" \
-        -n "$NS" --dry-run=client -o yaml 2>/dev/null | oc apply -f - 2>/dev/null || true
-    success "MLflow RBAC configured"
-
-    # Create non-expiring SA token secret for MLflow authentication
-    if ! oc get secret mlflow-sa-token -n "$NS" &>/dev/null 2>&1; then
-        oc apply -n "$NS" -f - <<EOF
-apiVersion: v1
-kind: Secret
-metadata:
-  name: mlflow-sa-token
-  namespace: ${NS}
-  annotations:
-    kubernetes.io/service-account.name: default
-type: kubernetes.io/service-account-token
-EOF
-        success "MLflow SA token secret created"
-    fi
-fi
-
-# Wait + Verify
 oc rollout status deployment/planner-backend -n "$NS" --timeout=600s 2>/dev/null || \
     warn "Backend rollout timeout (check: oc describe pod -l app=planner-backend -n $NS)"
 oc rollout status deployment/planner-frontend -n "$NS" --timeout=300s 2>/dev/null || \
     warn "Frontend rollout timeout (check: oc describe pod -l app=planner-frontend -n $NS)"
 
 echo ""
-PLANNER_URL="https://inference-planner.${CLUSTER_DOMAIN}"
-PLANNER_API="https://inference-planner-api.${CLUSTER_DOMAIN}"
-
 BE_READY=$(oc get deployment planner-backend -n "$NS" \
     -o jsonpath='{.status.readyReplicas}' 2>/dev/null || echo "0")
 FE_READY=$(oc get deployment planner-frontend -n "$NS" \
@@ -512,9 +608,10 @@ FE_READY=$(oc get deployment planner-frontend -n "$NS" \
 [ "${FE_READY:-0}" -ge 1 ] && echo "  ✅ Frontend  : $PLANNER_URL" || \
     echo "  ⬚  Frontend  : $PLANNER_URL (starting...)"
 [ "$MLFLOW_AVAILABLE" = true ] && \
-    echo "  ✅ MLflow    : enabled (experiment: inference-design-planner)" || \
-    echo "  ⬚  MLflow    : disabled (run sno-enable-all-features-35.sh first)"
-echo "  ✅ Database  : ${TARGET_DB}@${PG_FQDN} (reused)"
+    echo "  ✅ MLflow    : enabled (workspace: $NS, experiment: inference-design-planner)" || \
+    echo "  ⬚  MLflow    : disabled (mlflow-client-env could not be created)"
+echo "  ✅ Database  : ${TARGET_DB}@${PG_FQDN}"
+echo "  ✅ Namespace : $NS"
 
 echo ""
 info "LLM:"
