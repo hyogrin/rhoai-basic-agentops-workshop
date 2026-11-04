@@ -116,13 +116,13 @@ image::img-three-pillars-observability.png[관측성의 세 가지 축]
 * {rhoai-short} {rhoai-version}이 설치된 {ocp} 클러스터가 실행 중이어야 합니다
 * 클러스터에 GPU 노드가 하나 이상 사용 가능해야 합니다 (예: NVIDIA L4, L40S, A100)
 * 관리자가 GPU Hardware Profile을 생성해 두어야 합니다
-* MLflow Tracking Server가 배포되어 있어야 합니다 (`sno-enable-all-features-35.sh` 사용)
-* `redhat-ods-applications` 네임스페이스에 PostgreSQL이 실행 중이어야 합니다 (`sno-setup-maas-35.sh` 사용)
+* MLflow Tracking Server가 배포되어 있어야 합니다 (`field-source-enable-all-features-35.sh` 사용)
+* `redhat-ods-applications` 네임스페이스에 PostgreSQL이 실행 중이어야 합니다 (`field-source-setup-maas-35.sh` 사용)
 * GPU 메트릭을 위해 NVIDIA DCGM Exporter가 활성화되어 있어야 합니다
 * 사용자명과 같은 이름의 본인 프로젝트(예: `user1`)에 admin 권한이 있어야 합니다 -- 각 참가자는 이 프로젝트에 자신만의 애플리케이션을 배포합니다
 * 강사가 제공한 로그인 자격 증명(사용자명 및 비밀번호)이 준비되어 있어야 합니다
 
 [TIP]
 ====
-스크립트를 통한 환경 설정(MLflow, Operator, 대시보드 기능 등)은 https://github.com/jingggg-wenn/rhoai-sno-setup-guide[RHOAI 3.5 SNO Setup Guide]를 참조하십시오. 전체 클러스터 준비를 자동화할 수 있습니다.
+스크립트를 통한 환경 설정(MLflow, Operator, 대시보드 기능 등)은 https://github.com/jingggg-wenn/rhoai-field-source-setup-guide[RHOAI 3.5 Field Source Setup Guide]를 참조하십시오. 전체 클러스터 준비를 자동화할 수 있습니다.
 ====

@@ -15,9 +15,9 @@
 # Prerequisites:
 #   - oc login completed as the workshop user (e.g. user7)
 #   - The user's namespace already exists and the user has admin on it
-#   - sno-enable-all-features-35.sh already run (MLflow server; the per-user
+#   - field-source-enable-all-features-35.sh already run (MLflow server; the per-user
 #     mlflow-client-env ConfigMap is created by this script if missing)
-#   - sno-setup-maas-35.sh already run (PostgreSQL in redhat-ods-applications)
+#   - field-source-setup-maas-35.sh already run (PostgreSQL in redhat-ods-applications)
 #   - Container images already pushed to registry
 #
 # Usage:
@@ -83,6 +83,12 @@ LLM_MODEL="${POSITIONAL[2]}"
 
 # Normalize LLM_BASE_URL: remove trailing slash to avoid double-slash in API paths
 LLM_BASE_URL="${LLM_BASE_URL%/}"
+# The backend uses an OpenAI-compatible client, which expects the base URL to
+# include the API version (e.g. https://maas.apps.<cluster>/v1). Append /v1 if missing.
+case "$LLM_BASE_URL" in
+    */v1) ;;
+    *) LLM_BASE_URL="${LLM_BASE_URL}/v1" ;;
+esac
 
 ###############################################################################
 # Resolve user + namespace
@@ -225,7 +231,7 @@ echo ""
 ###############################################################################
 # Step 2: Per-user database on existing PostgreSQL
 #   The POC PostgreSQL lives in redhat-ods-applications (deployed by
-#   sno-setup-maas-35.sh). Each participant gets their own database so
+#   field-source-setup-maas-35.sh). Each participant gets their own database so
 #   migrations and data don't collide.
 ###############################################################################
 info "=== Step 2/6: PostgreSQL (dedicated database on shared server) ==="
@@ -240,7 +246,7 @@ fi
 
 if ! oc get deployment postgres -n "$PG_NS" &>/dev/null; then
     error "PostgreSQL not found in $PG_NS"
-    error "Run sno-setup-maas-35.sh first to deploy PostgreSQL"
+    error "Run field-source-setup-maas-35.sh first to deploy PostgreSQL"
     exit 1
 fi
 
@@ -332,6 +338,7 @@ data:
   APP_ENV: "production"
   APP_LOG_LEVEL: "INFO"
   APP_CORS_ORIGINS: "${PLANNER_URL}"
+  LLM_MODEL: "${LLM_MODEL}"
   LLM_MODEL_NAME: "${LLM_MODEL}"
   MLFLOW_EXPERIMENT_NAME: "inference-design-planner"
   MLFLOW_WORKSPACE: "${NS}"
@@ -345,6 +352,10 @@ metadata:
   namespace: ${NS}
 type: Opaque
 stringData:
+  # LLM_* are read by the backend settings (backend/config.py);
+  # OPENAI_* kept for compatibility with older images / OpenAI SDK defaults.
+  LLM_BASE_URL: "${LLM_BASE_URL}"
+  LLM_API_KEY: "${LLM_API_KEY}"
   OPENAI_BASE_URL: "${LLM_BASE_URL}"
   OPENAI_API_KEY: "${LLM_API_KEY}"
   DATABASE_URL: "${DB_URL_ASYNC}"
@@ -452,6 +463,12 @@ if [ "$MLFLOW_AVAILABLE" = true ]; then
                   key: token"
 fi
 
+# Pods only read envFrom ConfigMaps/Secrets at startup. Stamp a hash of the
+# configuration onto the pod template so a re-run with changed values (e.g. a
+# new LLM URL/key/model) triggers a rollout instead of leaving stale pods.
+CONFIG_HASH=$(printf '%s|%s|%s|%s|%s|%s' "$LLM_BASE_URL" "$LLM_API_KEY" "$LLM_MODEL" \
+    "$DB_URL_ASYNC" "$PLANNER_URL" "$MLFLOW_AVAILABLE" | cksum | awk '{print $1}')
+
 oc apply -n "$NS" -f - <<EOF
 apiVersion: apps/v1
 kind: Deployment
@@ -469,6 +486,8 @@ spec:
     metadata:
       labels:
         app: planner-backend
+      annotations:
+        planner/config-hash: "${CONFIG_HASH}"
     spec:
       containers:
         - name: backend

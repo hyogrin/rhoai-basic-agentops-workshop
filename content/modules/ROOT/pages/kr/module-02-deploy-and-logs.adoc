@@ -46,7 +46,7 @@ image::img-initiate-cli.png[OpenShift Console에서 Web Terminal 열기]
 
 [source,sh,role="execute"]
 ----
-export LLM_BASE_URL="https://maas.apps.ocp.xxxxxxxxxxxxxx.opentlc.com"
+export LLM_BASE_URL="https://maas.apps.ocp.xxxxxxxxxxxxxx.opentlc.com/v1"
 ----
 
 [source,sh,role="execute"]
@@ -63,13 +63,15 @@ export LLM_MODEL="<MaaS model path>"
 ====
 플레이스홀더 값을 실제 클러스터 서브도메인, API 키, 모델 이름으로 교체하십시오. 이 값은 강사가 제공하거나 이전 실습에서 사용한 것을 그대로 사용합니다.
 
-예를 들어, 클러스터 도메인이 `ocp.5sh6j.sandbox1809.opentlc.com`이고, 사용자가 `user01`이며, Gemma 4 E4B 모델을 배포한 경우:
+기본 URL은 반드시 `/v1`로 끝나야 합니다(예: `https://maas.apps.<cluster-domain>/v1`). 애플리케이션은 OpenAI 호환 클라이언트를 사용하여 `<기본 URL>/chat/completions`로 요청을 보내기 때문입니다. `/v1`을 생략하면 배포 스크립트가 자동으로 추가합니다.
+
+예를 들어, 클러스터 도메인이 `ocp.5sh6j.sandbox1809.opentlc.com`이고, 사용자가 `user1`이며, Gemma 4 E4B 모델을 배포한 경우:
 
 [source,sh]
 ----
-export LLM_BASE_URL="https://maas.apps.ocp.5sh6j.sandbox1809.opentlc.com"
+export LLM_BASE_URL="https://maas.apps.ocp.5sh6j.sandbox1809.opentlc.com/v1"
 export LLM_API_KEY="sk-oai-<your-api-key>"
-export LLM_MODEL="publishers/user01/models/redhataigemma-4-e4b-it"
+export LLM_MODEL="publishers/user1/models/redhataigemma-4-e4b-it"
 ----
 ====
 

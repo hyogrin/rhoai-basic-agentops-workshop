@@ -116,13 +116,13 @@ Before starting, confirm the following are ready:
 * A running {ocp} cluster with {rhoai-short} {rhoai-version} installed
 * At least one GPU node available in the cluster (for example, NVIDIA L4, L40S, or A100)
 * A GPU hardware profile created by your administrator
-* MLflow Tracking Server deployed (via `sno-enable-all-features-35.sh`)
-* PostgreSQL running in `redhat-ods-applications` namespace (via `sno-setup-maas-35.sh`)
+* MLflow Tracking Server deployed (via `field-source-enable-all-features-35.sh`)
+* PostgreSQL running in `redhat-ods-applications` namespace (via `field-source-setup-maas-35.sh`)
 * NVIDIA DCGM Exporter enabled for GPU metrics
 * Your own project, named after your username (e.g. `user1`), with admin access -- each participant deploys their own copy of the application into it
 * Your login credentials (username and password provided by your instructor)
 
 [TIP]
 ====
-For a scripted environment setup (MLflow, operators, dashboard features, and more), see the https://github.com/jingggg-wenn/rhoai-sno-setup-guide[RHOAI 3.5 SNO Setup Guide]. It automates the full cluster preparation.
+For a scripted environment setup (MLflow, operators, dashboard features, and more), see the https://github.com/jingggg-wenn/rhoai-field-source-setup-guide[RHOAI 3.5 Field Source Setup Guide]. It automates the full cluster preparation.
 ====

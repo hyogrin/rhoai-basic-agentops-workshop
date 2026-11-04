@@ -46,7 +46,7 @@ The deployment script requires three parameters: the LLM base URL, an API key, a
 
 [source,sh,role="execute"]
 ----
-export LLM_BASE_URL="https://maas.apps.ocp.xxxxxxxxxxxxxx.opentlc.com"
+export LLM_BASE_URL="https://maas.apps.ocp.xxxxxxxxxxxxxx.opentlc.com/v1"
 ----
 
 [source,sh,role="execute"]
@@ -63,13 +63,15 @@ export LLM_MODEL="<MaaS model path>"
 ====
 Replace the placeholder values with your actual cluster subdomain, API key, and model name. These are either provided by your instructor or carried over from your previous lab deployment.
 
-For example, if your cluster domain is `ocp.5sh6j.sandbox1809.opentlc.com`, your user is `user01`, and you deployed the Gemma 4 E4B model:
+The base URL must end with `/v1` (for example `https://maas.apps.<cluster-domain>/v1`), because the application uses an OpenAI-compatible client that sends requests to `<base URL>/chat/completions`. If you leave it out, the deployment script adds `/v1` for you.
+
+For example, if your cluster domain is `ocp.5sh6j.sandbox1809.opentlc.com`, your user is `user1`, and you deployed the Gemma 4 E4B model:
 
 [source,sh]
 ----
-export LLM_BASE_URL="https://maas.apps.ocp.5sh6j.sandbox1809.opentlc.com"
+export LLM_BASE_URL="https://maas.apps.ocp.5sh6j.sandbox1809.opentlc.com/v1"
 export LLM_API_KEY="sk-oai-<your-api-key>"
-export LLM_MODEL="publishers/user01/models/redhataigemma-4-e4b-it"
+export LLM_MODEL="publishers/user1/models/redhataigemma-4-e4b-it"
 ----
 ====
 
