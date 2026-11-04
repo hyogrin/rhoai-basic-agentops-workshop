@@ -91,21 +91,22 @@ For more details, see the MLflow documentation: https://mlflow.org/docs/latest/l
 
 In {productname-long} 3.5, MLflow is built into the {ocp-short} AI Dashboard. No separate login is required.
 
-. In the {ocp-short} AI Dashboard, open the left sidebar and click *Experiments* under *MLflow*.
+. In the {ocp-short} AI Dashboard, open the left sidebar, expand *Develop & train*, and click *Experiments*.
+. In the *Project* dropdown, select your own project (your username, e.g. `user1`).
 +
-You will see the list of experiments for your data science project.
+You will see the list of experiments in your project.
 +
 [NOTE]
 ====
-If the *Experiments* tab does not appear, you may have deployed the application but not yet sent any traffic. The MLflow server is running, but experiments only become visible in the dashboard after the application records its first trace. Go back to Module 2 Step 2.7 and run at least one analysis before continuing.
+The experiment is created automatically when the application backend starts, so it should appear even before you send any traffic. If you do not see it, check that the *Project* dropdown is set to your username.
 ====
 
-image::mlflow/img-experiments.png[Experiments page showing the inference-design-planner experiment in the demo project]
+image::mlflow/img-experiments.png[Experiments page showing the /user1/inference-design-planner experiment in the user1 project]
 
-[start=2]
-. Select the *{mlflow-experiment}* experiment.
+[start=3]
+. Select the experiment named `/<your-username>/{mlflow-experiment}` (e.g. `/user1/{mlflow-experiment}`).
 +
-This is the experiment configured by the {demo-app-name} where all traces are recorded.
+This is the experiment configured by the {demo-app-name} where your traces are recorded. The prefix is your project name: each participant's application records traces into an MLflow workspace tied to their own project, so you only see traces from your own deployment, not from other participants.
 
 
 == Exercise 2: Find and Analyse Traces
@@ -116,7 +117,12 @@ In Module 2 you interacted with the {demo-app-name} and generated traffic. MLflo
 
 . In the experiment view, click *Traces* in the left sidebar.
 +
-You will see a list of all traced requests, sorted by most recent.
+You will see a list of all traced requests from your deployment, sorted by most recent.
++
+[NOTE]
+====
+If the *Traces* list is empty, you have not generated any traffic yet. Go back to Module 2 Step 2.7, run at least one analysis, and refresh this page.
+====
 
 image::mlflow/img-mlflow-traces-list.png[MLflow traces list showing captured requests]
 

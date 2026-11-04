@@ -21,10 +21,10 @@ For AI applications, logs reveal:
 === Step 3.1: Navigate to the Backend Pod
 
 . In the *{ocp-short} Console*, navigate to *Workloads* > *Pods*.
-. Make sure the *Project* dropdown at the top is set to `demo`.
+. Make sure the *Project* dropdown at the top is set to your username (e.g. `user1`).
 . Click on the *planner-backend* pod.
 
-image::img-pods-list.png[Pod list in the demo namespace]
+image::img-pods-list.png[Pod list in your project]
 
 === Step 3.2: View the Log Stream
 
@@ -61,24 +61,32 @@ Click the *arrow-down* button (bottom-right) to auto-scroll and follow the log s
 
 == Exercise 3: View Logs via the Terminal (Optional)
 
-You can also view logs from the Web Terminal using `oc logs`:
+You can also view logs from the Web Terminal using `oc logs`.
+
+These commands use the `$NS` variable you set in Module 2. If your Web Terminal session has restarted since then, set it again:
+
+[source,sh,role="execute"]
+----
+export NS=$(oc whoami | tr '[:upper:]' '[:lower:]')
+echo "Your project: $NS"
+----
 
 *Tail the live backend log stream:*
 [source,sh,role="execute"]
 ----
-oc logs -f deployment/planner-backend -n demo
+oc logs -f deployment/planner-backend -n $NS
 ----
 
 *Show only the last 50 lines:*
 [source,sh,role="execute"]
 ----
-oc logs deployment/planner-backend -n demo --tail=50
+oc logs deployment/planner-backend -n $NS --tail=50
 ----
 
 *Filter for specific patterns with grep:*
 [source,sh,role="execute"]
 ----
-oc logs deployment/planner-backend -n demo --tail=200 | grep -i "error\|exception\|mlflow"
+oc logs deployment/planner-backend -n $NS --tail=200 | grep -i "error\|exception\|mlflow"
 ----
 
 Press `Ctrl+C` to stop following the log stream.

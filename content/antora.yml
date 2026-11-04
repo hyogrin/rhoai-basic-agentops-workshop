@@ -38,6 +38,5 @@ asciidoc:
     page-openshift_cluster_console_url: "https://console-openshift-console.{openshift_cluster_ingress_domain}"
     # Demo app details
     demo-app-name: "Inference Design Planner"
-    demo-ns: "demo"
     mlflow-experiment: "inference-design-planner"
     imagesdir: ../assets/images

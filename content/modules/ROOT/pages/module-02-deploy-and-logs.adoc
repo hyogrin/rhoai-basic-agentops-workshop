@@ -25,10 +25,10 @@ The {demo-app-name} is a full-stack AI application consisting of:
 | React-based web UI
 
 | *PostgreSQL*
-| Shared database (reused from `redhat-ods-applications` namespace)
+| Your own database (`inference_planner_<username>`) on the shared PostgreSQL instance in the `redhat-ods-applications` namespace
 
 | *MLflow*
-| Experiment tracking and trace collection (pre-deployed by setup scripts)
+| Experiment tracking and trace collection (pre-deployed by setup scripts). Your traces are recorded in an MLflow workspace tied to your project.
 |===
 
 === Step 2.1: Open the Web Terminal
@@ -73,14 +73,24 @@ export LLM_MODEL="publishers/user01/models/redhataigemma-4-e4b-it"
 ----
 ====
 
+Finally, save your project name in a variable. Each participant has their own project named after their username (e.g. `user1`), and the commands in this workshop use `$NS` to refer to it:
+
+[source,sh,role="execute"]
+----
+export NS=$(oc whoami | tr '[:upper:]' '[:lower:]')
+echo "Your project: $NS"
+----
+
 === Step 2.3: Run the Deployment Script
 
-The deployment script is fully self-contained -- no git clone needed. It performs four steps automatically:
+The deployment script is fully self-contained -- no git clone needed. It detects your project from your login (`oc whoami`) and deploys everything there, so your copy of the application is completely separate from other participants'. It performs six steps automatically:
 
-. *PostgreSQL* -- Verifies the existing PostgreSQL instance and creates the application database
-. *Configuration* -- Creates ConfigMaps and Secrets with LLM and database connection details
-. *Backend + Frontend* -- Deploys the application pods, services, and routes
-. *Migration + RBAC* -- Runs database migrations and configures MLflow access
+. *Routes* -- Creates the frontend and backend routes with URLs unique to your project (e.g. `inference-planner-user1.apps...`)
+. *PostgreSQL* -- Creates your own database (e.g. `inference_planner_user1`) on the shared PostgreSQL instance
+. *Configuration* -- Creates ConfigMaps and Secrets with LLM, database, and MLflow connection details, and configures MLflow access
+. *Migration* -- Runs database migrations to create the application tables
+. *Backend + Frontend* -- Deploys the application pods and services
+. *Verify* -- Waits for the pods to become ready and prints a summary
 
 Run it with a single command:
 
@@ -92,13 +102,9 @@ curl -sL https://raw.githubusercontent.com/hyogrin/rhoai-basic-agentops-workshop
 
 [TIP]
 ====
-By default the script deploys into the `demo` namespace. To use a different namespace, pass `--namespace=<NS>`:
+The first lines of the output show the user and project the script detected, for example `Namespace : user1 (derived from oc whoami)`. Check that it matches your username before continuing.
 
-[source,sh]
-----
-curl -sL https://raw.githubusercontent.com/hyogrin/rhoai-basic-agentops-workshop/main/scripts/deploy_demo_app.sh \
-  | bash -s -- "$LLM_BASE_URL" "$LLM_API_KEY" "$LLM_MODEL" --namespace=user-XX
-----
+The script is safe to re-run: resources that already exist are reused or updated.
 ====
 
 === Step 2.4: Verify the Deployment
@@ -107,12 +113,16 @@ Wait for the script to complete. You should see output similar to:
 
 [source,text]
 ----
-  Backend   : https://inference-planner-api.apps.<cluster-domain>
-  Frontend  : https://inference-planner.apps.<cluster-domain>
-  MLflow    : enabled (experiment: inference-design-planner)
-  Database  : inference_planner@postgres.redhat-ods-applications.svc.cluster.local (reused)
+  ✅ Backend   : https://inference-planner-api-user1.apps.<cluster-domain>
+  ✅ Frontend  : https://inference-planner-user1.apps.<cluster-domain>
+  ✅ MLflow    : enabled (workspace: user1, experiment: inference-design-planner)
+  ✅ Database  : inference_planner_user1@postgres.redhat-ods-applications.svc.cluster.local
+  ✅ Namespace : user1
 ----
 
+Your output shows your own username in place of `user1`.
+
+// TODO: retake img-deploy-script-output.png -- current screenshot shows the old single-user output (demo namespace, shared routes)
 image::img-deploy-script-output.png[Successful deployment script output]
 
 
@@ -120,10 +130,10 @@ Confirm all pods are running:
 
 [source,sh,role="execute"]
 ----
-oc get pods -n demo
+oc get pods -n $NS
 ----
 
-You should see three pods:
+You should see these three application pods (your project may also contain other pods, such as `showroom` or a workbench):
 
 [source,text]
 ----
@@ -133,27 +143,26 @@ planner-db-migrate-xxxxx             0/1     Completed   0          3m
 planner-frontend-xxxxxxxxx-xxxxx     1/1     Running     0          2m
 ----
 
-// TODO: replace img-pods-running.png with a clean screenshot showing only these 3 pods
-image::img-pods-running.png[Pods running in demo namespace]
+image::img-pods-running.png[Pods running in your project]
 
 * `planner-backend` and `planner-frontend` should show `Running` with `1/1` ready.
 * `planner-db-migrate` is a one-time database migration Job -- `Completed` with `0/1` is expected.
-* If your namespace has other pods from separate deployments (model serving, other demos), those are unrelated to this workshop.
+* If your project has other pods (for example `showroom`, a workbench, or model serving), those are unrelated to this application.
 
 If any pod shows `CrashLoopBackOff` or `Error`, check the pod events:
 
 [source,sh,role="execute"]
 ----
-oc describe pod <pod-name> -n demo
+oc describe pod <pod-name> -n $NS
 ----
 
 === Step 2.5: Access the Application
 
 [TIP]
 ====
-You can also retrieve the URL from the OpenShift Console under *Networking* > *Routes* in the `demo` namespace.
+You can also retrieve the URL from the OpenShift Console under *Networking* > *Routes*, with the *Project* dropdown set to your username. The route URLs include your project name (e.g. `inference-planner-user1.apps...`).
 
-image::img-app-routes.png[Routes in the demo namespace showing frontend and backend URLs]
+image::img-app-routes.png[Routes in your project showing frontend and backend URLs]
 ====
 
 Open the frontend URL shown in the deployment output in your browser. You should see the {demo-app-name} landing page.

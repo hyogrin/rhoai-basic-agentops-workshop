@@ -28,7 +28,7 @@ AI workloads behave differently from traditional applications:
 {ocp-short} provides pre-built dashboards that show GPU and pod metrics without writing any queries.
 
 . In the *{ocp-short} Console*, navigate to *Observe* > *Dashboards*.
-. Select *Kubernetes / Compute Resources / Namespace (Pods)* from the dashboard dropdown and set the namespace filter to `demo`.
+. Select *Kubernetes / Compute Resources / Namespace (Pods)* from the dashboard dropdown and set the namespace filter to your project (your username, e.g. `user1`).
 +
 This shows CPU usage, memory usage, and network I/O for all pods in the namespace at a glance.
 

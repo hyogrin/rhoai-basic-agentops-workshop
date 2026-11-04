@@ -25,10 +25,10 @@
 | React 기반 웹 UI
 
 | *PostgreSQL*
-| 공유 데이터베이스 (`redhat-ods-applications` 네임스페이스의 기존 인스턴스 재사용)
+| `redhat-ods-applications` 네임스페이스의 공유 PostgreSQL 인스턴스에 생성되는 사용자 전용 데이터베이스 (`inference_planner_<사용자명>`)
 
 | *MLflow*
-| 실험 추적 및 트레이스 수집 (설정 스크립트로 사전 배포됨)
+| 실험 추적 및 트레이스 수집 (설정 스크립트로 사전 배포됨). 트레이스는 사용자 프로젝트에 연결된 MLflow 워크스페이스에 기록됩니다.
 |===
 
 === 단계 2.1: Web Terminal 열기
@@ -73,14 +73,24 @@ export LLM_MODEL="publishers/user01/models/redhataigemma-4-e4b-it"
 ----
 ====
 
+마지막으로, 프로젝트 이름을 변수에 저장합니다. 각 참가자는 사용자명과 같은 이름의 프로젝트(예: `user1`)를 가지며, 이 워크숍의 명령어는 `$NS`로 해당 프로젝트를 참조합니다:
+
+[source,sh,role="execute"]
+----
+export NS=$(oc whoami | tr '[:upper:]' '[:lower:]')
+echo "Your project: $NS"
+----
+
 === 단계 2.3: 배포 스크립트 실행
 
-배포 스크립트는 완전 자체 포함형으로, git clone이 필요하지 않습니다. 다음 네 단계를 자동으로 수행합니다:
+배포 스크립트는 완전 자체 포함형으로, git clone이 필요하지 않습니다. 로그인 정보(`oc whoami`)로 사용자의 프로젝트를 감지하여 모든 리소스를 해당 프로젝트에 배포하므로, 다른 참가자의 애플리케이션과 완전히 분리됩니다. 다음 여섯 단계를 자동으로 수행합니다:
 
-. *PostgreSQL* -- 기존 PostgreSQL 인스턴스를 확인하고 애플리케이션 데이터베이스를 생성합니다
-. *설정* -- LLM 및 데이터베이스 연결 정보가 포함된 ConfigMap과 Secret을 생성합니다
-. *백엔드 + 프론트엔드* -- 애플리케이션 Pod, Service, Route를 배포합니다
-. *마이그레이션 + RBAC* -- 데이터베이스 마이그레이션을 실행하고 MLflow 접근을 구성합니다
+. *Route* -- 프로젝트별 고유 URL(예: `inference-planner-user1.apps...`)로 프론트엔드 및 백엔드 Route를 생성합니다
+. *PostgreSQL* -- 공유 PostgreSQL 인스턴스에 사용자 전용 데이터베이스(예: `inference_planner_user1`)를 생성합니다
+. *설정* -- LLM, 데이터베이스, MLflow 연결 정보가 포함된 ConfigMap과 Secret을 생성하고 MLflow 접근을 구성합니다
+. *마이그레이션* -- 데이터베이스 마이그레이션을 실행하여 애플리케이션 테이블을 생성합니다
+. *백엔드 + 프론트엔드* -- 애플리케이션 Pod와 Service를 배포합니다
+. *확인* -- Pod가 준비될 때까지 기다린 후 요약을 출력합니다
 
 다음 명령어로 실행합니다:
 
@@ -92,13 +102,9 @@ curl -sL https://raw.githubusercontent.com/hyogrin/rhoai-basic-agentops-workshop
 
 [TIP]
 ====
-기본적으로 스크립트는 `demo` 네임스페이스에 배포합니다. 다른 네임스페이스를 사용하려면 `--namespace=<NS>`를 추가하십시오:
+출력의 첫 부분에 스크립트가 감지한 사용자와 프로젝트가 표시됩니다(예: `Namespace : user1 (derived from oc whoami)`). 계속하기 전에 본인의 사용자명과 일치하는지 확인하십시오.
 
-[source,sh]
-----
-curl -sL https://raw.githubusercontent.com/hyogrin/rhoai-basic-agentops-workshop/main/scripts/deploy_demo_app.sh \
-  | bash -s -- "$LLM_BASE_URL" "$LLM_API_KEY" "$LLM_MODEL" --namespace=user-XX
-----
+스크립트는 다시 실행해도 안전합니다. 이미 존재하는 리소스는 재사용되거나 업데이트됩니다.
 ====
 
 === 단계 2.4: 배포 확인
@@ -107,12 +113,16 @@ curl -sL https://raw.githubusercontent.com/hyogrin/rhoai-basic-agentops-workshop
 
 [source,text]
 ----
-  Backend   : https://inference-planner-api.apps.<cluster-domain>
-  Frontend  : https://inference-planner.apps.<cluster-domain>
-  MLflow    : enabled (experiment: inference-design-planner)
-  Database  : inference_planner@postgres.redhat-ods-applications.svc.cluster.local (reused)
+  ✅ Backend   : https://inference-planner-api-user1.apps.<cluster-domain>
+  ✅ Frontend  : https://inference-planner-user1.apps.<cluster-domain>
+  ✅ MLflow    : enabled (workspace: user1, experiment: inference-design-planner)
+  ✅ Database  : inference_planner_user1@postgres.redhat-ods-applications.svc.cluster.local
+  ✅ Namespace : user1
 ----
 
+실제 출력에는 `user1` 대신 본인의 사용자명이 표시됩니다.
+
+// TODO: img-deploy-script-output.png 재촬영 필요 -- 현재 스크린샷은 이전 단일 사용자 출력(demo 네임스페이스, 공유 Route)을 보여줌
 image::img-deploy-script-output.png[배포 스크립트 성공 출력]
 
 
@@ -120,10 +130,10 @@ image::img-deploy-script-output.png[배포 스크립트 성공 출력]
 
 [source,sh,role="execute"]
 ----
-oc get pods -n demo
+oc get pods -n $NS
 ----
 
-세 개의 Pod가 표시되어야 합니다:
+다음 세 개의 애플리케이션 Pod가 표시되어야 합니다 (프로젝트에 `showroom`이나 워크벤치 등 다른 Pod가 함께 표시될 수 있습니다):
 
 [source,text]
 ----
@@ -133,27 +143,26 @@ planner-db-migrate-xxxxx             0/1     Completed   0          3m
 planner-frontend-xxxxxxxxx-xxxxx     1/1     Running     0          2m
 ----
 
-// TODO: img-pods-running.png를 위 3개 Pod만 표시하는 깨끗한 스크린샷으로 교체
-image::img-pods-running.png[demo 네임스페이스에서 실행 중인 Pod]
+image::img-pods-running.png[사용자 프로젝트에서 실행 중인 Pod]
 
 * `planner-backend`와 `planner-frontend`는 `Running` 상태에 `1/1` ready여야 합니다.
 * `planner-db-migrate`는 일회성 데이터베이스 마이그레이션 Job으로, `Completed` 상태에 `0/1`이 정상입니다.
-* 네임스페이스에 별도 배포(모델 서빙, 다른 데모)의 Pod가 있을 수 있으나, 이 워크숍과는 무관합니다.
+* 프로젝트에 다른 Pod(예: `showroom`, 워크벤치, 모델 서빙)가 있을 수 있으나, 이 애플리케이션과는 무관합니다.
 
 Pod 중 `CrashLoopBackOff` 또는 `Error` 상태가 있다면, Pod 이벤트를 확인하십시오:
 
 [source,sh,role="execute"]
 ----
-oc describe pod <pod-name> -n demo
+oc describe pod <pod-name> -n $NS
 ----
 
 === 단계 2.5: 애플리케이션 접속
 
 [TIP]
 ====
-OpenShift Console의 *Networking* > *Routes*에서 `demo` 네임스페이스의 URL을 확인할 수도 있습니다.
+*Project* 드롭다운을 본인의 사용자명으로 설정한 후, OpenShift Console의 *Networking* > *Routes*에서 URL을 확인할 수도 있습니다. Route URL에는 프로젝트 이름이 포함됩니다(예: `inference-planner-user1.apps...`).
 
-image::img-app-routes.png[demo 네임스페이스의 Route -- 프론트엔드 및 백엔드 URL]
+image::img-app-routes.png[사용자 프로젝트의 Route -- 프론트엔드 및 백엔드 URL]
 ====
 
 배포 출력에 표시된 프론트엔드 URL을 브라우저에서 엽니다. {demo-app-name} 랜딩 페이지가 표시됩니다.

@@ -91,21 +91,22 @@ with mlflow.start_span(name="my_workflow", span_type="CHAIN") as root:
 
 {productname-long} 3.5에서는 MLflow가 {ocp-short} AI Dashboard에 내장되어 있습니다. 별도 로그인이 필요하지 않습니다.
 
-. {ocp-short} AI Dashboard의 좌측 사이드바에서 *MLflow* 아래의 *Experiments*를 클릭합니다.
+. {ocp-short} AI Dashboard의 좌측 사이드바에서 *Develop & train*을 펼친 후 *Experiments*를 클릭합니다.
+. *Project* 드롭다운에서 본인의 프로젝트(사용자명, 예: `user1`)를 선택합니다.
 +
-Data Science 프로젝트의 실험 목록이 표시됩니다.
+프로젝트의 실험 목록이 표시됩니다.
 +
 [NOTE]
 ====
-*Experiments* 탭이 나타나지 않는 경우, 애플리케이션은 배포했으나 아직 트래픽을 전송하지 않았을 수 있습니다. MLflow 서버는 실행 중이지만, 실험은 애플리케이션이 첫 번째 트레이스를 기록한 후에야 대시보드에 표시됩니다. 모듈 2 단계 2.7로 돌아가 최소 한 번의 분석을 실행한 후 계속하십시오.
+실험은 애플리케이션 백엔드가 시작될 때 자동으로 생성되므로, 트래픽을 전송하기 전에도 표시됩니다. 실험이 보이지 않으면 *Project* 드롭다운이 본인의 사용자명으로 설정되어 있는지 확인하십시오.
 ====
 
-image::mlflow/img-experiments.png[demo 프로젝트의 inference-design-planner 실험이 표시된 Experiments 페이지]
+image::mlflow/img-experiments.png[user1 프로젝트의 /user1/inference-design-planner 실험이 표시된 Experiments 페이지]
 
-[start=2]
-. *{mlflow-experiment}* 실험을 선택합니다.
+[start=3]
+. `/<사용자명>/{mlflow-experiment}` 실험(예: `/user1/{mlflow-experiment}`)을 선택합니다.
 +
-이것은 모든 트레이스가 기록되는 {demo-app-name}이 구성한 실험입니다.
+이것은 사용자의 트레이스가 기록되는 {demo-app-name}이 구성한 실험입니다. 접두사는 프로젝트 이름입니다. 각 참가자의 애플리케이션은 자신의 프로젝트에 연결된 MLflow 워크스페이스에 트레이스를 기록하므로, 다른 참가자의 트레이스는 보이지 않고 본인 배포의 트레이스만 표시됩니다.
 
 
 == 실습 2: 트레이스 찾기 및 분석
@@ -116,7 +117,12 @@ image::mlflow/img-experiments.png[demo 프로젝트의 inference-design-planner 
 
 . 실험 뷰에서 좌측 사이드바의 *Traces*를 클릭합니다.
 +
-가장 최근 순으로 정렬된 모든 추적된 요청 목록이 표시됩니다.
+본인 배포에서 추적된 모든 요청 목록이 가장 최근 순으로 정렬되어 표시됩니다.
++
+[NOTE]
+====
+*Traces* 목록이 비어 있다면 아직 트래픽을 생성하지 않은 것입니다. 모듈 2 단계 2.7로 돌아가 최소 한 번의 분석을 실행한 후 이 페이지를 새로고침하십시오.
+====
 
 image::mlflow/img-mlflow-traces-list.png[캡처된 요청을 보여주는 MLflow 트레이스 목록]
 
