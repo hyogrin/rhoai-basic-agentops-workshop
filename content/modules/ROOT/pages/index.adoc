@@ -4,6 +4,8 @@ Welcome to the *Basic AgentOps on Red Hat AI* workshop.
 
 In this hands-on lab you will deploy an AI-powered application, then learn how to observe it using the three pillars of AgentOps: *logs*, *traces*, and *resource metrics*.
 
-xref:module-01-introduction.adoc#introduction[Get Started -- Module 1: Introduction]
+xref:module-01-introduction.adoc#introduction[Get Started -- Module 1: Introduction (English Version)]
+
+xref:kr/module-01-introduction.adoc#introduction-kr[한국어로 시작하기 -- 1: 소개 (Korean Version)]
 
 Source repository: https://github.com/hyogrin/rhoai-basic-agentops-workshop
