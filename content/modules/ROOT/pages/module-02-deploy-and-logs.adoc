@@ -247,7 +247,7 @@ image::inference-planner-app/img-reco-2.png[Recommendation -- performance foreca
 image::inference-planner-app/img-reco-3.png[Recommendation -- inference design suggestion with risk factors and alternatives]
 --
 
-. You may try running multiple analyses with different models or GPU configurations for comparison. To compare, click *Saved Recommendations*, select two results, then click *Compare*. The application displays a side-by-side comparison with differences highlighted across deployment, memory, cost, and performance fields.
+. You may try running multiple analyses with different models or GPU configurations for comparison. To compare, click *View History*, select two results, then click *Compare*. The application displays a side-by-side comparison with differences highlighted across deployment, memory, cost, and performance fields.
 +
 image::inference-planner-app/img-compare.png[Side-by-side comparison with highlighted differences]
 +
